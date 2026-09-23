@@ -24,7 +24,7 @@ The app runs on the Expedition PC and the other screens open it over the boat ne
 Download `mojito_rtc_twa_calculator_vNN.zip` from the [latest release](https://github.com/mojito9047/mojito-rtc-twa-calculator/releases/latest) before going to the boat. Nothing in the installation needs the internet: the zip carries its own copy of Flask. The Expedition PC needs Python 3.11 or later ([python.org](https://www.python.org/downloads/windows/)).
 
 1. Unzip it on the Expedition PC, into the folder that holds any earlier version, so the versions sit side by side (for example `Documents\Mojito\mojito_rtc_twa_calculator_v71`).
-2. Double-click `install.bat` in the new folder. It sets up Python's environment, then looks for the most recently used earlier version beside it and offers to copy its settings, marks and course across. Answer `Y` to carry on where the last version left off.
+2. Double-click `install.bat` in the new folder. It sets up Python's environment, then looks for the most recently used earlier version beside it and offers to copy its settings, marks and course across. Answer `Y` to carry on where the last version left off. It then asks whether to start the app automatically when you sign in to Windows (see [Starting automatically](#starting-automatically)); if that is already on, it moves it to the new version without asking.
 3. Close the earlier version's `start_app.bat` window if it is running (both use port 8765; the new one will not start beside it).
 4. Double-click `start_app.bat` in the new folder. Its window shows the addresses to open, on this PC and from other devices, and must stay open while the app is in use.
 5. Open the app, and check the version at the top right of the page:
@@ -40,6 +40,10 @@ http://<Expedition-PC-IP-address>:8765
 ```
 
 You may need to allow Python through Windows Firewall the first time.
+
+### Starting automatically
+
+With auto-start on, signing in to Windows starts the app, minimised on the taskbar (open its window for the version and addresses). It does not matter whether Expedition starts before or after it. `install.bat` offers it, and keeps it on the newest version at each upgrade; to turn it on or off later, double-click `autostart.bat` in the version you want. It is a shortcut in your Windows Startup folder; it starts at sign-in, not at power-on, so a PC with a password starts the app once someone signs in.
 
 To check a new version on the PC before racing, double-click `run_tests.bat` (see [Testing](#testing)). Once the new version is working, the earlier version's folder can be deleted.
 
@@ -261,7 +265,7 @@ Without the internet the chart only has the map where it has been viewed before,
 
 ### `start_app.bat` says *Is the app already running?*, or the page is still the old version
 
-Another version (or another copy) is still running on port 8765. Close its `start_app.bat` window, then start the new one again.
+Another version (or another copy) is still running on port 8765. Close its `start_app.bat` window (look on the taskbar: with auto-start it starts minimised), then start the new one again. If an old version keeps starting when you sign in, double-click `autostart.bat` in the new version.
 
 ### The MFD shows an old course
 
@@ -308,3 +312,7 @@ Each version from v71 on is a [release on GitHub](https://github.com/mojito9047/
 ### v74
 
 - The version history in this README starts at v71, the first release published on GitHub, so it matches the Releases page. The notes for earlier versions are in [docs/EARLIER_VERSIONS.md](docs/EARLIER_VERSIONS.md).
+
+### v75
+
+- The app can start automatically when you sign in to Windows. `install.bat` asks, and at each upgrade moves auto-start to the new version without asking, so the old version is never the one that starts; a shortcut made by hand to an earlier version is replaced. `autostart.bat` turns it on or off later. See [Starting automatically](#starting-automatically).

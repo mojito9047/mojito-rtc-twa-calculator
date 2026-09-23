@@ -29,6 +29,7 @@
 | `static/leaflet/` | Leaflet 1.9.4 (BSD 2-clause, its `LICENSE` alongside), served by the app so the chart works offline. The JavaScript tests skip it (`tests/js/harness.js`); a test can supply a stand-in `window.L`. |
 | `tests/` | Test suite; see [TESTING.md](TESTING.md). |
 | `install.bat`, `copy_previous_install.py` | Installing on the boat PC: Flask from the zip's `wheels/`, then settings, marks and course copied from the previous version's folder. |
+| `autostart.py`, `autostart.bat` | Starting at Windows sign-in: one minimised shortcut in the Startup folder to this version's `start_app.bat`, made with WScript.Shell through PowerShell. `install.bat` runs `autostart.py --install` (asks, or moves an existing one to the new version, replacing any hand-made shortcut to a copy of the app). |
 | `tools/release.py`, `make_release.bat` | Building and publishing a release; see [RELEASING.md](RELEASING.md). In git, not in the zip. |
 | `LICENSE` | MIT, the standard text so GitHub recognises it. The fonts are not covered: they are under the SIL OFL (`static/fonts/OFL.txt`, and the README's Licence section). |
 | `runtime/` | State the app rewrites while running. Not in git. |

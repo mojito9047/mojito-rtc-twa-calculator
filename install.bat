@@ -34,5 +34,9 @@ echo.
 rem Offers to bring settings, marks and course across from the previous version's folder.
 .venv\Scripts\python.exe copy_previous_install.py
 echo.
+rem Offers to start the app when you sign in to Windows; if it already does,
+rem moves that to this version so the old one is never the one that starts.
+.venv\Scripts\python.exe autostart.py --install
+echo.
 echo Install complete. Double-click start_app.bat to start the app.
 pause

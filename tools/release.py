@@ -48,7 +48,8 @@ DEV_ONLY = ("tools", "make_release.bat", ".gitignore", ".gitattributes")
 REQUIRED = ("app.py", "install.bat", "start_app.bat", "run_tests.bat", "copy_previous_install.py",
             "requirements.txt", "server/__init__.py", "templates/index.html", "README.md", "LICENSE",
             "SailChart J122 North.txt", "J122.txt", "marks.example.json", "course.example.json",
-            "static/leaflet/leaflet.js", "static/leaflet/leaflet.css", "server/tiles.py")
+            "static/leaflet/leaflet.js", "static/leaflet/leaflet.css", "server/tiles.py",
+            "autostart.py", "autostart.bat")
 # Must not be: this PC's state, caches and build output.
 FORBIDDEN_DIRS = {".venv", "runtime", "__pycache__", ".git", "dist"}
 FORBIDDEN_FILES = {"settings.json"}          # each install's own; a fresh one uses the defaults
