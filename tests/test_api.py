@@ -1,9 +1,13 @@
 """The app's own HTTP API: course, marks, current leg, race start, wind and position."""
 
+import contextlib
+import io
 import json
 import re
+import socket
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import app
 from server import VERSION, expedition_dll, race_officer, storage
@@ -357,11 +361,90 @@ class RouteTests(unittest.TestCase):
         "/api/mfd_status", "/api/health",
         "/api/instruments",                 # v67: instrument source status
         "/api/wind",                        # v69: the wind every display uses
+        "/tiles/<layer>/<int:z>/<int:x>/<int:y>.png",   # v73: chart tiles, saved for offline
     }
 
     def test_all_urls_still_served(self):
         served = {rule.rule for rule in app.app.url_map.iter_rules() if not rule.rule.startswith("/static")}
         self.assertEqual(served, self.EXPECTED)
+
+
+class ServeTests(unittest.TestCase):
+    """app.py serves the pages with Waitress (Flask's own server is for development only)."""
+
+    def serve(self, bind_error=None):
+        calls, bound = [], []
+        sock = object()
+
+        def fake_serve(wsgi_app, **options):
+            calls.append((wsgi_app, options))
+
+        def fake_socket(port):
+            bound.append(port)
+            if bind_error:
+                raise bind_error
+            return sock
+
+        out = io.StringIO()
+        with mock.patch.object(app.waitress, "serve", fake_serve), \
+                mock.patch.object(app, "listening_socket", fake_socket), \
+                mock.patch.object(app, "get_local_ipv4_addresses", lambda: ["192.168.12.150"]), \
+                contextlib.redirect_stdout(out):
+            code = app.serve()
+        return code, bound, calls, sock, out.getvalue()
+
+    def test_served_by_waitress_on_every_address(self):
+        code, bound, calls, sock, out = self.serve()
+        self.assertEqual(code, 0)
+        self.assertEqual(bound, [8765])
+        self.assertEqual(calls, [(app.app, {"sockets": [sock], "threads": app.THREADS})])
+        self.assertGreaterEqual(app.THREADS, 8)                 # the chart asks for dozens of tiles at once
+        # Waitress prints no addresses of its own, so the app does.
+        self.assertIn(f"Mojito RTC TWA Calculator {VERSION}", out)
+        self.assertIn("On this PC:        http://localhost:8765", out)
+        self.assertIn("On other devices:  http://192.168.12.150:8765", out)
+
+    def test_port_already_in_use(self):
+        code, _, calls, _, out = self.serve(OSError(10048, "Only one usage of each socket address is normally permitted"))
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, [])
+        self.assertIn("Could not start on port 8765", out)
+        self.assertIn("Is the app already running?", out)
+        self.assertNotIn("On this PC", out)                    # no addresses for an app that is not running
+
+    def test_a_second_copy_cannot_share_the_port(self):
+        # Waitress on its own lets a second copy open the same port on Windows.
+        first = app.listening_socket(0)
+        try:
+            first.listen(5)
+            port = first.getsockname()[1]
+            with self.assertRaises(OSError):
+                app.listening_socket(port).close()
+            other = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                other.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)   # as Waitress opens its port
+                with self.assertRaises(OSError):
+                    other.bind(("0.0.0.0", port))
+            finally:
+                other.close()
+        finally:
+            first.close()
+
+    def test_main_starts_the_threads_then_serves(self):
+        order = mock.Mock()
+        with mock.patch.object(storage, "prepare_runtime_dir", order.prepare), \
+                mock.patch.object(app.instruments, "start_wind_sampler", order.wind), \
+                mock.patch.object(app, "start_mfd_advertiser", order.mfd), \
+                mock.patch.object(race_officer, "start_poller", order.poller), \
+                mock.patch.object(app, "serve", order.serve):
+            order.serve.return_value = 0
+            self.assertEqual(app.main(), 0)
+        self.assertEqual([c[0] for c in order.mock_calls], ["prepare", "wind", "mfd", "poller", "serve"])
+
+    def test_requirements(self):
+        requirements = (Path(__file__).resolve().parents[1] / "requirements.txt").read_text(encoding="utf-8").split()
+        self.assertEqual([r.split("==")[0].lower() for r in requirements], ["flask", "waitress"])
+        self.assertTrue(all("==" in r for r in requirements))  # pinned: the zip ships these wheels
 
 
 class StorageTests(AppTestCase):

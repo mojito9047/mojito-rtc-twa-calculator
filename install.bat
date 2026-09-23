@@ -12,19 +12,19 @@ if errorlevel 1 (
   exit /b 1
 )
 
-rem The release zip carries Flask and its dependencies in wheels\, so this
+rem The release zip carries Flask, Waitress and their dependencies in wheels\, so this
 rem needs no internet. Without them (a git checkout), pip downloads them.
 if not exist wheels\ goto online
-echo Installing Flask from the wheels folder (no internet needed)...
+echo Installing Flask and Waitress from the wheels folder (no internet needed)...
 .venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check --no-index --find-links wheels -r requirements.txt
 if not errorlevel 1 goto installed
 echo The wheels folder does not suit this Python; trying the internet instead.
 
 :online
-echo Installing Flask from the internet...
+echo Installing Flask and Waitress from the internet...
 .venv\Scripts\python.exe -m pip install --quiet --disable-pip-version-check -r requirements.txt
 if errorlevel 1 (
-  echo Could not install Flask. Connect to the internet and run this again.
+  echo Could not install Flask and Waitress. Connect to the internet and run this again.
   pause
   exit /b 1
 )

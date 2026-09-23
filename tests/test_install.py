@@ -74,6 +74,16 @@ class CopyPreviousInstallTests(unittest.TestCase):
         self.assertEqual((self.old / "SailChart J122 North.txt").read_text(), "edited chart")
         self.assertTrue((self.old / "runtime" / "course.json").exists())
 
+    def test_saved_map_tiles_come_across(self):
+        self.use(self.old, {"instrument_source": "expedition"}, {"course.json": {"course": "O 1 O"}})
+        tile = self.old / "runtime" / "tiles" / "osm" / "15" / "15770" / "10622.png"
+        tile.parent.mkdir(parents=True)
+        tile.write_bytes(b"png")
+        code, out = self.run_main()
+        self.assertIn("runtime/tiles (1 map tiles)", out)
+        self.assertEqual((self.new / "runtime" / "tiles" / "osm" / "15" / "15770" / "10622.png").read_bytes(), b"png")
+        self.assertTrue(tile.exists())                                     # the previous version keeps its own
+
     def test_state_from_the_app_folder_of_v60_and_earlier(self):
         old = self.make_install("mojito_rtc_twa_calculator_v59")          # no server/, no runtime/
         self.old.rename(self.parent / "unused")                            # leave v59 as the only one

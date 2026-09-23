@@ -312,12 +312,80 @@ function courseChartRouteIds() {
   return parseCourse(document.getElementById("course").value);
 }
 
-function chartLegColour(index, fromId, toId) {
-  const key = currentRouteKey(index, fromId, toId);
-  const rounding = (courseRoundings[key] || "").toUpperCase();
-  if (rounding === "P") return "#b91c1c";
-  if (rounding === "S") return "#166534";
-  return "#0f172a";
+// Leg and mark colours: the signal-flag red and green of index.css.
+const CHART_PORT = "#c8102e";
+const CHART_STARBOARD = "#00843d";
+const CHART_OTHER = "#1c1a15";
+
+function chartRoundingColour(rounding) {
+  if (rounding === "P") return CHART_PORT;
+  if (rounding === "S") return CHART_STARBOARD;
+  return CHART_OTHER;
+}
+
+function chartRoundingWords(rounding) {
+  return {P: "leave to port", S: "leave to starboard", V: "via, not rounded", F: "run to the finish"}[rounding]
+    || "rounding not set";
+}
+
+// What the chart draws, worked out once for the map and the plain drawing.
+// Marks carry their mark ID only, once each however often they are rounded;
+// legs carry their numbers in circles, so the two cannot be mistaken for each
+// other. Legs sailed more than once the same way share a circle ("4, 8").
+function courseChartModel(routeIds, routeMarks) {
+  const legs = [];
+  for (let i = 0; i < routeMarks.length - 1; i++) {
+    const rounding = (courseRoundings[currentRouteKey(i, routeIds[i], routeIds[i + 1])] || "").toUpperCase();
+    legs.push({number: i + 1, from: routeMarks[i], to: routeMarks[i + 1], rounding, colour: chartRoundingColour(rounding)});
+  }
+
+  const stops = new Map();
+  routeMarks.forEach((mark, i) => {
+    if (!stops.has(mark.id)) stops.set(mark.id, {mark, visits: [], roles: []});
+    const stop = stops.get(mark.id);
+    if (i === 0) {
+      stop.roles.push("Start");
+    } else {
+      stop.visits.push({leg: i, rounding: legs[i - 1].rounding});
+    }
+    if (i === routeMarks.length - 1 && i > 0) stop.roles.push("Finish");
+  });
+  for (const stop of stops.values()) {
+    // A mark always left the same way takes that colour; otherwise dark.
+    const sides = new Set(stop.visits.map(v => v.rounding));
+    stop.colour = sides.size === 1 ? chartRoundingColour([...sides][0]) : CHART_OTHER;
+  }
+
+  const groups = new Map();
+  for (const leg of legs) {
+    const key = `${leg.from.id}>${leg.to.id}`;
+    if (!groups.has(key)) groups.set(key, {from: leg.from, to: leg.to, colour: leg.colour, numbers: []});
+    groups.get(key).numbers.push(leg.number);
+  }
+  return {legs, stops: [...stops.values()], legGroups: [...groups.values()]};
+}
+
+// A point part way along a leg: leg numbers sit 40% along, arrows 70%, so on
+// a leg sailed both ways (A to B, then B to A) none of them overlap.
+function chartAlong(from, to, fraction) {
+  return [from[0] + (to[0] - from[0]) * fraction, from[1] + (to[1] - from[1]) * fraction];
+}
+
+// Screen offset (pixels) to the right of a leg's direction of travel, for its
+// number: legs between the same marks, or nearly in line, sailed in opposite
+// directions then have their numbers on opposite sides.
+const CHART_LEG_NO_OFFSET = 14;
+function chartRightOffset(bearingDeg) {
+  const a = (bearingDeg + 90) * Math.PI / 180;
+  return [Math.round(Math.sin(a) * CHART_LEG_NO_OFFSET), Math.round(-Math.cos(a) * CHART_LEG_NO_OFFSET)];
+}
+
+function chartMarkPopup(mark, stop) {
+  let html = `<strong>${mark.id}</strong> ${mark.name}<br>${MojitoLegs.formatPosition(mark.latDec, false)} ${MojitoLegs.formatPosition(mark.lonDec, true)}`;
+  if (!stop) return html + "<br>Not on the course";
+  if (stop.roles.includes("Start")) html += "<br>Start";
+  for (const visit of stop.visits) html += `<br>End of leg ${visit.leg}: ${chartRoundingWords(visit.rounding)}`;
+  return html;
 }
 
 function chartBearingDeg(from, to) {
@@ -327,10 +395,6 @@ function chartBearingDeg(from, to) {
   const y = Math.sin(dLon) * Math.cos(lat2);
   const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
   return ((Math.atan2(y, x) * 180 / Math.PI) + 360) % 360;
-}
-
-function chartMidpoint(from, to) {
-  return [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
 }
 
 function clearCourseChartLayers() {
@@ -366,32 +430,45 @@ function renderCourseChart() {
   const routeMarks = routeIds.map(id => markById[id]).filter(Boolean);
   const routePoints = routeMarks.map(m => [m.latDec, m.lonDec]);
 
-  if (routePoints.length < 2) {
+  if (routePoints.length < 2 && !marks.length) {
     removeCourseChartMap();
-    el.innerHTML =`<div class="courseChartFallback" style="display:grid;place-items:center;color:#64748b;font-weight:800;">Enter or import a course with at least two valid marks.</div>`;
+    el.innerHTML =`<div class="courseChartFallback" style="display:grid;place-items:center;color:#64748b;font-weight:800;">No marks with positions yet: add them on Edit marks, or import them.</div>`;
     if (status) {
-      status.textContent = "No chart to display: the current course has fewer than two valid marks.";
+      status.textContent = "No chart to display: there are no marks with positions.";
       status.className = "status bad";
     }
     return;
   }
 
+  // The chart is framed on the course; with no course yet, on every mark, so
+  // the whole area is in view while the course is announced and built.
+  const framePoints = routePoints.length >= 2 ? routePoints : marks.map(m => [m.latDec, m.lonDec]);
+
   if (window.L) {
-    renderCourseChartLeaflet(el, routeIds, routeMarks, routePoints, status);
+    renderCourseChartLeaflet(el, routeIds, routeMarks, routePoints, framePoints, status);
   } else {
-    renderCourseChartSvg(el, routeIds, routeMarks, status);
+    renderCourseChartSvg(el, routeIds, routeMarks, framePoints, status);
   }
 }
 
-function renderCourseChartLeaflet(el, routeIds, routeMarks, routePoints, status) {
+// What the status line under the chart says with no course yet.
+function noCourseChartStatus(status, prefix) {
+  if (!status) return;
+  status.textContent = `${prefix}No course yet: showing all ${marks.length} marks. Add marks above to build the course.`;
+  status.className = "status";
+}
+
+function renderCourseChartLeaflet(el, routeIds, routeMarks, routePoints, framePoints, status) {
   if (!courseChartMap) {
     el.innerHTML = "";  // clear any earlier "no course" message or SVG chart
     courseChartMap = L.map(el, { scrollWheelZoom:true });
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    // Tiles come through this app (server/tiles.py), which keeps a copy of each
+    // one shown, so areas viewed with the internet are there without it.
+    L.tileLayer("/tiles/osm/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(courseChartMap);
-    L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", {
+    L.tileLayer("/tiles/seamark/{z}/{x}/{y}.png", {
       maxZoom: 18,
       attribution: "&copy; OpenSeaMap contributors"
     }).addTo(courseChartMap);
@@ -399,69 +476,71 @@ function renderCourseChartLeaflet(el, routeIds, routeMarks, routePoints, status)
 
   courseChartMap.invalidateSize();
   clearCourseChartLayers();
+  const model = courseChartModel(routeIds, routeMarks);
+  const stopById = new Map(model.stops.map(s => [s.mark.id, s]));
+  const at = m => [m.latDec, m.lonDec];
+  const divIcon = html => L.divIcon({className: "", html, iconSize: null});
 
-  // Grey reference labels for all available marks.
+  // Marks not on the course: a small grey dot and their ID.
   for (const m of marks) {
-    const icon = L.divIcon({
-      className: "",
-      html: `<span class="chartMarkLabel allMark">${m.id}</span>`,
-      iconSize: null
-    });
-    addCourseChartLayer(L.marker([m.latDec, m.lonDec], {icon, interactive:false, zIndexOffset:100}));
+    if (stopById.has(m.id)) continue;
+    addCourseChartLayer(L.marker(at(m), {icon: divIcon(`<div class="chartMark offCourse"><span class="chartDot"></span><span class="chartMarkId">${m.id}</span></div>`),
+                                         zIndexOffset: 100}).bindPopup(chartMarkPopup(m, null)));
   }
 
-  // Coloured course legs.
-  for (let i = 0; i < routePoints.length - 1; i++) {
-    const fromId = routeIds[i];
-    const toId = routeIds[i + 1];
-    const colour = chartLegColour(i, fromId, toId);
-    const isFinishLeg = (courseRoundings[currentRouteKey(i, fromId, toId)] || "") === "F";
-    addCourseChartLayer(L.polyline([routePoints[i], routePoints[i + 1]], {
-      color: colour,
+  // The legs, coloured by the rounding at their end.
+  for (const leg of model.legs) {
+    addCourseChartLayer(L.polyline([at(leg.from), at(leg.to)], {
+      color: leg.colour,
       weight: 5,
       opacity: 0.9,
-      dashArray: isFinishLeg ? "10 8" : null
+      dashArray: leg.rounding === "F" ? "10 8" : null
     }));
-
-    const mid = chartMidpoint(routePoints[i], routePoints[i + 1]);
-    const bearing = chartBearingDeg(routePoints[i], routePoints[i + 1]);
-    const arrowIcon = L.divIcon({
-      className: "",
-      html: `<div class="legArrowIcon" style="color:${colour}; transform:rotate(${bearing}deg);">▲</div>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
-    });
-    addCourseChartLayer(L.marker(mid, {icon: arrowIcon, interactive:false, zIndexOffset:450}));
   }
 
-  // Route markers, repeated marks get numbered callouts.
-  for (let i = 0; i < routeMarks.length; i++) {
-    const m = routeMarks[i];
-    const icon = L.divIcon({
-      className: "",
-      html: `<span class="chartMarkLabel">${i + 1}. ${m.id}</span>`,
-      iconSize: null
-    });
-    addCourseChartLayer(L.marker([m.latDec, m.lonDec], {icon, zIndexOffset:500})
-      .bindPopup(`<strong>${i + 1}. ${m.id}</strong><br>${m.name}<br>${MojitoLegs.formatPosition(m.latDec, false)} ${MojitoLegs.formatPosition(m.lonDec, true)}`));
+  // Each way along a leg: an arrow, and the leg number(s) in a circle.
+  for (const group of model.legGroups) {
+    const bearing = chartBearingDeg(at(group.from), at(group.to));
+    addCourseChartLayer(L.marker(chartAlong(at(group.from), at(group.to), 0.7), {
+      icon: L.divIcon({className: "", html: `<div class="legArrowIcon" style="color:${group.colour}; transform:rotate(${bearing}deg);">▲</div>`,
+                       iconSize: [24, 24], iconAnchor: [12, 12]}),
+      interactive: false, zIndexOffset: 400}));
+    const [dx, dy] = chartRightOffset(bearing);
+    addCourseChartLayer(L.marker(chartAlong(at(group.from), at(group.to), 0.4), {
+      icon: divIcon(`<span class="chartLegNo" style="border-color:${group.colour}; transform:translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px));">${group.numbers.join(", ")}</span>`),
+      interactive: false, zIndexOffset: 450}));
   }
 
-  courseChartMap.fitBounds(L.latLngBounds(routePoints), {padding:[35,35]});
+  // Marks on the course: a dot in their rounding colour, their ID, and Start/Finish.
+  for (const stop of model.stops) {
+    const roles = stop.roles.length ? ` <small>${stop.roles.join(" · ")}</small>` : "";
+    addCourseChartLayer(L.marker(at(stop.mark), {
+      icon: divIcon(`<div class="chartMark"><span class="chartDot" style="background:${stop.colour};"></span><span class="chartMarkLabel">${stop.mark.id}${roles}</span></div>`),
+      zIndexOffset: 500}).bindPopup(chartMarkPopup(stop.mark, stop)));
+  }
 
-  if (status) {
+  if (framePoints.length > 1) {
+    courseChartMap.fitBounds(L.latLngBounds(framePoints), {padding:[35,35]});
+  } else {
+    courseChartMap.setView(framePoints[0], 14);          // one mark: fitBounds would zoom right in
+  }
+
+  if (routePoints.length < 2) {
+    noCourseChartStatus(status, "");
+  } else if (status) {
     status.textContent = `Showing ${routePoints.length} route points and ${routePoints.length - 1} legs.`;
     status.className = "status good";
   }
 }
 
-function renderCourseChartSvg(el, routeIds, routeMarks, status) {
+function renderCourseChartSvg(el, routeIds, routeMarks, framePoints, status) {
   const width = Math.max(700, el.clientWidth || 700);
   const height = Math.max(420, el.clientHeight || 420);
-  const pts = routeMarks.map(m => ({id:m.id, name:m.name, lat:m.latDec, lon:m.lonDec}));
-  const all = marks.map(m => ({id:m.id, lat:m.latDec, lon:m.lonDec}));
+  const model = courseChartModel(routeIds, routeMarks);
+  const onCourse = new Set(model.stops.map(s => s.mark.id));
 
-  const lats = pts.map(p => p.lat);
-  const lons = pts.map(p => p.lon);
+  const lats = framePoints.map(p => p[0]);
+  const lons = framePoints.map(p => p[1]);
   const minLat = Math.min(...lats), maxLat = Math.max(...lats);
   const minLon = Math.min(...lons), maxLon = Math.max(...lons);
   const pad = 45;
@@ -471,37 +550,55 @@ function renderCourseChartSvg(el, routeIds, routeMarks, status) {
   function x(lon) { return pad + ((lon - minLon) / lonSpan) * (width - pad * 2); }
   function y(lat) { return height - pad - ((lat - minLat) / latSpan) * (height - pad * 2); }
 
+  const px = m => [x(m.lonDec), y(m.latDec)];
+  const along = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+
   let svg = `<svg class="courseChartFallback" viewBox="0 0 ${width} ${height}" role="img" aria-label="Course chart">`;
   svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="#f8fafc"/>`;
-  svg += `<defs>
-    <marker id="arrow-port" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#b91c1c"/></marker>
-    <marker id="arrow-starboard" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#166534"/></marker>
-    <marker id="arrow-other" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#0f172a"/></marker>
-  </defs>`;
 
-  for (const m of all) {
-    svg += `<circle cx="${x(m.lon)}" cy="${y(m.lat)}" r="4" fill="#94a3b8" opacity="0.65"/>`;
-    svg += `<text x="${x(m.lon) + 6}" y="${y(m.lat) - 5}" font-size="11" fill="#64748b" font-weight="700">${m.id}</text>`;
+  // The same as the map: grey marks off the course, legs coloured by rounding,
+  // leg numbers in circles, and each course mark once with its ID.
+  for (const m of marks) {
+    if (onCourse.has(m.id)) continue;
+    const [mx, my] = px(m);
+    svg += `<circle cx="${mx}" cy="${my}" r="3" fill="#7d776a"/>`;
+    svg += `<text x="${mx + 6}" y="${my + 4}" font-size="11" fill="#7d776a" font-weight="600">${m.id}</text>`;
   }
-
-  for (let i = 0; i < pts.length - 1; i++) {
-    const colour = chartLegColour(i, pts[i].id, pts[i + 1].id);
-    const markerId = colour === "#b91c1c" ? "arrow-port" : (colour === "#166534" ? "arrow-starboard" : "arrow-other");
-    svg += `<line x1="${x(pts[i].lon)}" y1="${y(pts[i].lat)}" x2="${x(pts[i+1].lon)}" y2="${y(pts[i+1].lat)}" stroke="${colour}" stroke-width="5" stroke-linecap="round" marker-end="url(#${markerId})"/>`;
+  for (const leg of model.legs) {
+    const [x1, y1] = px(leg.from), [x2, y2] = px(leg.to);
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${leg.colour}" stroke-width="5" stroke-linecap="round"${leg.rounding === "F" ? ' stroke-dasharray="10 8"' : ""}/>`;
   }
-
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    svg += `<circle cx="${x(p.lon)}" cy="${y(p.lat)}" r="11" fill="#0f172a" stroke="white" stroke-width="3"/>`;
-    svg += `<text x="${x(p.lon)}" y="${y(p.lat) + 4}" text-anchor="middle" font-size="10" fill="white" font-weight="900">${i + 1}</text>`;
-    svg += `<text x="${x(p.lon) + 14}" y="${y(p.lat) + 4}" font-size="14" fill="#0f172a" font-weight="900">${p.id}</text>`;
+  for (const group of model.legGroups) {
+    const a = px(group.from), b = px(group.to);
+    const [ax, ay] = along(a, b, 0.7);
+    const angle = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+    svg += `<path d="M-8,-6 L8,0 L-8,6 z" transform="translate(${ax} ${ay}) rotate(${angle})" fill="${group.colour}"/>`;
+    // To the right of the direction of travel, as on the map.
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    const [cx, cy] = along(a, b, 0.4);
+    const nx = cx - (b[1] - a[1]) / len * CHART_LEG_NO_OFFSET;
+    const ny = cy + (b[0] - a[0]) / len * CHART_LEG_NO_OFFSET;
+    const label = group.numbers.join(", ");
+    const w = Math.max(20, 8 + label.length * 7);
+    svg += `<rect x="${nx - w / 2}" y="${ny - 10}" width="${w}" height="20" rx="10" fill="white" stroke="${group.colour}" stroke-width="2"/>`;
+    svg += `<text x="${nx}" y="${ny + 4}" text-anchor="middle" font-size="11" fill="#1c1a15" font-weight="700">${label}</text>`;
+  }
+  for (const stop of model.stops) {
+    const [sx, sy] = px(stop.mark);
+    svg += `<circle cx="${sx}" cy="${sy}" r="7" fill="${stop.colour}" stroke="white" stroke-width="2"/>`;
+    svg += `<text x="${sx + 12}" y="${sy + 5}" font-size="14" fill="#1c1a15" font-weight="800">${stop.mark.id}</text>`;
+    if (stop.roles.length) {
+      svg += `<text x="${sx + 12 + stop.mark.id.length * 10}" y="${sy + 5}" font-size="10" fill="#4a463c" font-weight="700">${stop.roles.join(" · ").toUpperCase()}</text>`;
+    }
   }
 
   svg += `</svg>`;
   el.innerHTML = svg;
 
-  if (status) {
-    status.textContent = `Leaflet unavailable; showing SVG fallback with ${pts.length} route points.`;
+  if (routeMarks.length < 2) {
+    noCourseChartStatus(status, "Map library unavailable. ");
+  } else if (status) {
+    status.textContent = `Leaflet unavailable; showing SVG fallback with ${routeMarks.length} route points.`;
     status.className = "status good";
   }
 }

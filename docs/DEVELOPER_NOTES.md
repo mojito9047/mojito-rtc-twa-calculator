@@ -4,7 +4,7 @@
 
 | File | Notes |
 | --- | --- |
-| `app.py` | Creates the Flask app, registers the `server/` blueprints, serves the three pages and `/api/mfd_status`, starts the background threads. |
+| `app.py` | Creates the Flask app, registers the `server/` blueprints, serves the three pages and `/api/mfd_status`, starts the background threads, then serves with Waitress (`serve()`, 16 threads). It opens port 8765 itself with `SO_EXCLUSIVEADDRUSE`: Waitress's own `SO_REUSEADDR` would let a second copy share the port on Windows. |
 | `server/__init__.py` | `VERSION`, the release shown on every page. Bump it with each tagged version; a test checks it matches the newest version in the README. |
 | `server/storage.py` | Every file path (`app_file`, `runtime_file`), settings, safe JSON writes, runtime folder setup. |
 | `server/instruments.py` | Chooses the instrument source (`read_var`), Expedition connection, manual wind, `/api/wind`, position, wind history sampler, displayed-wind fallback. |
@@ -25,6 +25,8 @@
 | `static/mojito-logo.png` | The logo in the main page's header, with a transparent background (made from `mojito-logo.jpg`, the original artwork). |
 | `static/legs.js` | Leg calculations shared by all three pages (ES5): positions, route, bearing and range, TWA and tack, sail choice, target speed, bearing bar text. |
 | `static/race_start.js` | Start bar shared by all three pages (ES5). |
+| `server/tiles.py` | Course chart map tiles: fetched from OpenStreetMap/OpenSeaMap as they are shown, saved in `runtime/tiles/`, served from there with no internet. |
+| `static/leaflet/` | Leaflet 1.9.4 (BSD 2-clause, its `LICENSE` alongside), served by the app so the chart works offline. The JavaScript tests skip it (`tests/js/harness.js`); a test can supply a stand-in `window.L`. |
 | `tests/` | Test suite; see [TESTING.md](TESTING.md). |
 | `install.bat`, `copy_previous_install.py` | Installing on the boat PC: Flask from the zip's `wheels/`, then settings, marks and course copied from the previous version's folder. |
 | `tools/release.py`, `make_release.bat` | Building and publishing a release; see [RELEASING.md](RELEASING.md). In git, not in the zip. |
@@ -55,6 +57,7 @@ leave a half-written file (retried briefly if Windows reports the file in use).
 | `display_wind.json` | The main page, every second (fallback TWD for `/api/wind` and `/api/twd`). |
 | `wind_history.jsonl` | The server's wind sampler, once a second, last hour kept. |
 | `race_officer_poll_state.json` | The Race Officer poller: signatures, last check, race and start info. |
+| `tiles/<layer>/<z>/<x>/<y>.png` | `server/tiles.py`, as the course chart shows each map tile (`.none` where the server has no tile). |
 | `manual_wind.json` | The manual TWD/TWS typed on the Wind & Course page (used when the source is `manual`). |
 
 At startup `storage.prepare_runtime_dir()` moves any of these left in the app folder by
@@ -192,7 +195,14 @@ Wind & Course tab, or any course edit
   -> renderCourseChart()          skipped while the tab is hidden
     -> renderCourseChartLeaflet() if Leaflet is available
     -> renderCourseChartSvg()     otherwise
+
+Leaflet tile request /tiles/osm/{z}/{x}/{y}.png (and seamark)
+  -> server/tiles.py tile()       saved copy under a week old -> served
+    -> fetch_tile()               else from the tile server, saved in runtime/tiles/
+    -> no internet                any saved copy, however old; else 404
 ```
+
+The chart is framed on the course, or on every mark while there is no course.
 
 See [COURSE_CHART.md](COURSE_CHART.md).
 

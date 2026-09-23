@@ -30,7 +30,7 @@ class ReleaseToolTests(unittest.TestCase):
     def good_names(self, version="v71"):
         top = self.release.folder_name(version) + "/"
         names = [top + name for name in self.release.REQUIRED]
-        names += [top + "wheels/flask-3.0.3-py3-none-any.whl"]
+        names += [top + "wheels/flask-3.0.3-py3-none-any.whl", top + "wheels/waitress-3.0.2-py3-none-any.whl"]
         names += [top + f"wheels/markupsafe-3.0.3-cp{v.replace('.', '')}-cp{v.replace('.', '')}-win_amd64.whl"
                   for v in self.release.PYTHON_VERSIONS]
         return names
@@ -63,10 +63,11 @@ class ReleaseToolTests(unittest.TestCase):
                       ".venv/Scripts/python.exe", "tools/release.py", "make_release.bat"):
             problems = self.release.check_zip_names(self.good_names() + [top + extra], "v71")
             self.assertTrue(any(extra in p for p in problems), (extra, problems))
-        names = [n for n in self.good_names() if "cp311" not in n and not n.endswith("/LICENSE")]
+        names = [n for n in self.good_names() if "cp311" not in n and "waitress" not in n and not n.endswith("/LICENSE")]
         problems = self.release.check_zip_names(names + ["stray.txt"], "v71")
         self.assertIn("missing: LICENSE", problems)
         self.assertIn("no MarkupSafe wheel for Python 3.11", problems)
+        self.assertIn("no Waitress wheel", problems)
         self.assertIn("outside mojito_rtc_twa_calculator_v71/: stray.txt", problems)
 
 

@@ -196,6 +196,20 @@ The start bar's data, from the last poll:
 | `postponement_ends_clock` | When AP comes down as `HH:MM`, or `""`. |
 | `age_seconds`, `server_now`, `error` | For diagnostics. |
 
+## Map tiles
+
+`server/tiles.py`. See [COURSE_CHART.md](COURSE_CHART.md#map-tiles-without-the-internet).
+
+### `GET /tiles/<layer>/<z>/<x>/<y>.png`
+
+A course chart map tile: `layer` is `osm` (OpenStreetMap) or `seamark`
+(OpenSeaMap), `z` 0–19. The saved copy in `runtime/tiles/` when there is one less
+than a week old; otherwise fetched from the tile server and saved, or, with no
+internet, any saved copy. `404` where there is no tile (no seamarks there), or
+with no internet and nothing saved. Unlike every other response these may be
+cached by the browser (`Cache-Control: public, max-age=86400`), except a `404`
+for nothing saved.
+
 ## MFD
 
 `app.py`

@@ -47,7 +47,8 @@ DEV_ONLY = ("tools", "make_release.bat", ".gitignore", ".gitattributes")
 # Must be in the zip.
 REQUIRED = ("app.py", "install.bat", "start_app.bat", "run_tests.bat", "copy_previous_install.py",
             "requirements.txt", "server/__init__.py", "templates/index.html", "README.md", "LICENSE",
-            "SailChart J122 North.txt", "J122.txt", "marks.example.json", "course.example.json")
+            "SailChart J122 North.txt", "J122.txt", "marks.example.json", "course.example.json",
+            "static/leaflet/leaflet.js", "static/leaflet/leaflet.css", "server/tiles.py")
 # Must not be: this PC's state, caches and build output.
 FORBIDDEN_DIRS = {".venv", "runtime", "__pycache__", ".git", "dist"}
 FORBIDDEN_FILES = {"settings.json"}          # each install's own; a fresh one uses the defaults
@@ -118,8 +119,9 @@ def check_zip_names(names, version):
         if name not in files:
             problems.append(f"missing: {name}")
     wheels = [name[len("wheels/"):].lower() for name in files if name.startswith("wheels/") and name.endswith(".whl")]
-    if not any(w.startswith("flask-") for w in wheels):
-        problems.append("no Flask wheel")
+    for package in ("flask", "waitress"):
+        if not any(w.startswith(package + "-") for w in wheels):
+            problems.append(f"no {package.capitalize()} wheel")
     for py in PYTHON_VERSIONS:
         # MarkupSafe is the one compiled dependency: it needs a wheel per Python version.
         tag = "-cp" + py.replace(".", "") + "-"
@@ -185,7 +187,7 @@ def export(tag, target):
 
 
 def download_wheels(target):
-    """Flask and its dependencies for every PYTHON_VERSIONS, at the versions tested in this .venv."""
+    """requirements.txt (Flask, Waitress) with dependencies, for every PYTHON_VERSIONS, at the versions tested in this .venv."""
     wheels = target / "wheels"
     frozen = run([sys.executable, "-m", "pip", "freeze", "--disable-pip-version-check"])
     with tempfile.TemporaryDirectory() as tmp:

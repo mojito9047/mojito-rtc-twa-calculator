@@ -301,6 +301,117 @@ class WindStripTests(unittest.TestCase):
                          {"label": "Wind: Manual", "help_hidden": False, "twd_disabled": False, "tws_disabled": False})
 
 
+@requires_node
+class CourseChartTests(unittest.TestCase):
+    """Wind & Course: the course chart frames the course, or every mark while there is no course."""
+
+    MARKS = """[{id: "O", name: "Outer", lat: "52 52.747N", lon: "04 23.960W"},
+                {id: "1", name: "Partington", lat: "52 52.700N", lon: "04 24.300W"},
+                {id: "C", name: "Causeway", lat: "52 41.210N", lon: "04 25.330W"}]"""
+    # Stands in for Leaflet: records what the map is framed on, and every icon drawn.
+    FAKE_LEAFLET = """
+        var framed = null, icons = [];
+        function fakeLayer() { return {addTo: function () { return this; }, bindPopup: function () { return this; }}; }
+        window.L = {
+            map: function () { return {invalidateSize: function () {}, removeLayer: function () {}, remove: function () {},
+                                       fitBounds: function (b) { framed = b; }, setView: function (p) { framed = [p]; }}; },
+            tileLayer: fakeLayer, polyline: fakeLayer,
+            marker: function (p, o) { icons.push(o.icon.html); return fakeLayer(); },
+            divIcon: function (o) { return o; }, latLngBounds: function (points) { return points; }};
+    """
+    # A course like the ones that confused: marks rounded twice, a leg sailed twice.
+    LAP_MARKS = """[{id: "O", name: "Outer", lat: "52 52.747N", lon: "04 23.960W"},
+                    {id: "3", name: "Mark 3", lat: "52 51.750N", lon: "04 25.700W"},
+                    {id: "8", name: "Mark 8", lat: "52 52.000N", lon: "04 24.700W"},
+                    {id: "C", name: "Causeway", lat: "52 41.210N", lon: "04 25.330W"}]"""
+    LAP_ROUNDINGS = '{"0:O-3": "P", "1:3-8": "P", "2:8-3": "S", "3:3-8": "P", "4:8-O": "P"}'
+
+    def chart(self, course, marks=MARKS, leaflet=False, roundings="{}", expr=None):
+        setup = (self.FAKE_LEAFLET if leaflet else "") + """
+            marks = normaliseMarks(%s); rebuildMarkIndex(); courseRoundings = %s;
+            __elements.course.value = %s;
+            __elements.courseChartMap.offsetWidth = 800;
+            renderCourseChart();
+        """ % (marks, roundings, json.dumps(course))
+        return run_js(page="index.html", setup=setup, expr=expr or """{
+            html: __elements.courseChartMap.innerHTML, status: __elements.courseChartStatus.textContent,
+            icons: typeof icons === "undefined" ? [] : icons,
+            framed: typeof framed === "undefined" ? null : framed.map(function (p) { return [p[0].toFixed(3), p[1].toFixed(3)]; })}""")
+
+    def lap_model(self):
+        return self.chart("O 3 8 3 8 O", marks=self.LAP_MARKS, roundings=self.LAP_ROUNDINGS, expr="""(function () {
+            var ids = courseChartRouteIds(), model = courseChartModel(ids, ids.map(function (id) { return markById[id]; }));
+            return {
+                stops: model.stops.map(function (s) { return {id: s.mark.id, roles: s.roles, colour: s.colour,
+                                                              legs: s.visits.map(function (v) { return v.leg; })}; }),
+                groups: model.legGroups.map(function (g) { return g.from.id + ">" + g.to.id + " " + g.numbers.join(", "); }),
+                popup: chartMarkPopup(markById.O, model.stops[0])};
+        })()""")
+
+    def test_each_mark_once_with_its_id_and_role(self):
+        model = self.lap_model()
+        self.assertEqual([s["id"] for s in model["stops"]], ["O", "3", "8"])
+        self.assertEqual(model["stops"][0]["roles"], ["Start", "Finish"])
+        self.assertEqual(model["stops"][1]["legs"], [1, 3])                 # mark 3 ends legs 1 and 3
+        self.assertEqual(model["stops"][2]["legs"], [2, 4])
+
+    def test_legs_sailed_twice_share_one_number_circle(self):
+        self.assertEqual(self.lap_model()["groups"], ["O>3 1", "3>8 2, 4", "8>3 3", "8>O 5"])
+
+    def test_mark_colour_is_its_rounding(self):
+        stops = {s["id"]: s["colour"] for s in self.lap_model()["stops"]}
+        self.assertEqual(stops["8"], "#c8102e")                              # legs 2 and 4: port both times
+        self.assertEqual(stops["3"], "#1c1a15")                              # legs 1 and 3: port, then starboard
+        self.assertEqual(stops["O"], "#c8102e")                              # finish, to port
+
+    def test_popup_says_what_happens_at_the_mark(self):
+        popup = self.lap_model()["popup"]
+        self.assertIn("<strong>O</strong> Outer", popup)
+        self.assertIn("Start", popup)
+        self.assertIn("End of leg 5: leave to port", popup)
+
+    def test_leg_numbers_sit_to_the_right_of_travel(self):
+        offsets = run_js(page="index.html", expr="[0, 90, 180, 270].map(chartRightOffset)")
+        # Heading north the right is east (+x); east, south (+y on screen); and so on.
+        self.assertEqual(offsets, [[14, 0], [0, 14], [-14, 0], [0, -14]])
+
+    def test_map_labels(self):
+        icons = self.chart("O 3 8 3 8 O", marks=self.LAP_MARKS, roundings=self.LAP_ROUNDINGS, leaflet=True)["icons"]
+        labels = [i for i in icons if 'class="chartMarkLabel"' in i]
+        self.assertEqual(len(labels), 3)                                     # O, 3 and 8 once each
+        self.assertIn(">O <small>Start · Finish</small><", "".join(labels))
+        self.assertEqual(sum('class="chartLegNo"' in i for i in icons), 4)  # the legs, "2, 4" sharing one
+        self.assertTrue(any(">2, 4</span>" in i for i in icons))
+        self.assertEqual(sum("offCourse" in i for i in icons), 1)           # C, not on the course
+        self.assertFalse(any(re.search(r">\d+\. \w", i) for i in icons))    # no more "6. 3" labels
+
+    def test_no_course_frames_every_mark(self):
+        result = self.chart("", leaflet=True)
+        self.assertEqual(result["framed"], [["52.879", "-4.399"], ["52.878", "-4.405"], ["52.687", "-4.422"]])
+        self.assertIn("No course yet: showing all 3 marks", result["status"])
+        self.assertNotIn("at least two valid marks", result["html"])
+
+    def test_one_mark_is_not_a_course(self):
+        self.assertIn("showing all 3 marks", self.chart("O", leaflet=True)["status"])
+
+    def test_course_frames_the_course(self):
+        result = self.chart("O 1 O", leaflet=True)
+        self.assertEqual(result["framed"], [["52.879", "-4.399"], ["52.878", "-4.405"], ["52.879", "-4.399"]])
+        self.assertIn("Showing 3 route points and 2 legs", result["status"])
+
+    def test_no_course_without_the_map(self):
+        # No Leaflet (static/leaflet/leaflet.js not loaded): the plain drawing, still of every mark.
+        result = self.chart("")
+        self.assertIn("<svg", result["html"])
+        for mark_id in ("O", "1", "C"):
+            self.assertIn(">%s</text>" % mark_id, result["html"])
+        self.assertIn("Map library unavailable. No course yet: showing all 3 marks", result["status"])
+
+    def test_no_marks(self):
+        result = self.chart("", marks="[]")
+        self.assertIn("No marks with positions yet", result["html"])
+
+
 class LegacyBrowserTests(unittest.TestCase):
     """The MFD's embedded browser is old: its page and race_start.js must be ES5."""
 
@@ -408,11 +519,12 @@ class SharedLegsTests(unittest.TestCase):
 
     def test_main_and_phone_pages_have_no_inline_code(self):
         # The MFD page keeps its code inline on purpose (one file for its old browser).
-        for page, script in (("index.html", "/static/index.js"), ("phone.html", "/static/phone.js")):
+        shared = ["/static/legs.js", "/static/race_start.js"]
+        for page, scripts in (("index.html", ["/static/leaflet/leaflet.js"] + shared + ["/static/index.js"]),
+                              ("phone.html", shared + ["/static/phone.js"])):
             html = (ROOT / "templates" / page).read_text(encoding="utf-8")
             self.assertNotIn("<style", html, page)
-            self.assertEqual([n for n, _ in self.page_scripts(page)],
-                             ["/static/legs.js", "/static/race_start.js", script], page)
+            self.assertEqual([n for n, _ in self.page_scripts(page)], scripts, page)
 
     def test_format_position(self):
         out = self.legs("""[MojitoLegs.formatPosition(50.6555, false), MojitoLegs.formatPosition(-1.9195, true),

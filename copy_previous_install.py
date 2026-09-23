@@ -9,7 +9,7 @@ copies from it:
                     the files chosen
     runtime/        marks, course, current leg, manual wind, Race Officer poll
                     state and wind history (from the app folder itself for v60
-                    and earlier)
+                    and earlier), and the course chart's saved map tiles
     the sail chart, polar and marks XML named in its settings, when this
     version has no file of that name (for example one uploaded on the Settings
     page). A file this version also ships is kept as shipped; if the two
@@ -90,6 +90,11 @@ def copy_previous(source, here, say=print):
         (here / "runtime").mkdir(exist_ok=True)
         shutil.copy2(path, here / "runtime" / name)
         copied.append(f"runtime/{name}")
+    tiles = source / "runtime" / "tiles"
+    if tiles.is_dir():
+        count = sum(1 for p in tiles.rglob("*.png"))
+        shutil.copytree(tiles, here / "runtime" / "tiles", dirs_exist_ok=True)
+        copied.append(f"runtime/tiles ({count} map tiles)")
     for key in FILE_SETTINGS:
         value = settings.get(key) if isinstance(settings, dict) else None
         if not isinstance(value, str) or not value.strip():

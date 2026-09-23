@@ -5,8 +5,9 @@
   <meta charset="utf-8" />
   <title>RTC TWA Calculator</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- Leaflet 1.9.4, served by this app so the chart works with no internet. -->
+  <link rel="stylesheet" href="/static/leaflet/leaflet.css">
+  <script src="/static/leaflet/leaflet.js"></script>
   <link rel="stylesheet" href="/static/fonts.css">
   <link rel="stylesheet" href="/static/index.css">
 </head>
@@ -63,14 +64,16 @@
         <div class="row" style="justify-content:space-between;">
           <div>
             <h2 style="margin:0;">Course chart</h2>
-            <p class="small">The course as it is being built. Red legs lead to port roundings; green legs lead to starboard roundings.</p>
+            <p class="small">The course as it is being built. Each mark on the course is labelled with its ID; the numbers in circles are the legs, in order. Click a mark for its name and how it is rounded.</p>
           </div>
           <button class="secondary" onclick="renderCourseChart()">Refresh chart</button>
         </div>
         <div class="chartLegend">
-          <span><span class="legendLine legendPort"></span>Port rounding</span>
-          <span><span class="legendLine legendStarboard"></span>Starboard rounding</span>
-          <span><span class="legendLine legendOther"></span>Start/unspecified; dashed = run to the finish</span>
+          <span><span class="legendLine legendPort"></span>Leg to a port rounding</span>
+          <span><span class="legendLine legendStarboard"></span>Leg to a starboard rounding</span>
+          <span><span class="legendLine legendOther"></span>Other legs; dashed = run to the finish</span>
+          <span><span class="chartLegNo">3</span>Leg number</span>
+          <span><span class="legendDot"></span>Mark not on the course</span>
         </div>
         <div class="courseChartWrap" style="margin-top:12px;">
           <div id="courseChartMap"></div>

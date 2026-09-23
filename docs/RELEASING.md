@@ -39,7 +39,7 @@ refuses a zip built that way.
    working folder, so uncommitted edits and this PC's `settings.json`,
    `runtime\` and `.venv\` cannot ship. Developer tooling (`tools\`,
    `make_release.bat`, `.gitignore`, `.gitattributes`) is left out.
-2. Downloads Flask and its dependencies as wheels into `wheels\`, for Python
+2. Downloads Flask, Waitress and their dependencies as wheels into `wheels\`, for Python
    3.11 to 3.14 on 64-bit Windows, at the versions installed in this `.venv`
    (the ones the tests ran against). This needs the internet; installing from
    the zip does not.

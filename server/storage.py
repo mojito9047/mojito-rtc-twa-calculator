@@ -82,10 +82,10 @@ def read_json(path, default=None):
         return default
 
 
-def write_text_atomic(path, text):
-    """Write text so readers never see a half-written file.
+def write_bytes_atomic(path, data):
+    """Write a file so readers never see it half-written.
 
-    The text goes to a temporary file that then replaces the target. Each write
+    The data goes to a temporary file that then replaces the target. Each write
     has its own temporary file, so two requests saving the same file at once
     cannot take each other's. On Windows the replace fails while another thread
     has the target open, so it is retried briefly before a direct write.
@@ -94,20 +94,24 @@ def write_text_atomic(path, text):
     fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
     tmp = Path(tmp_name)
     try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as f:
-            f.write(text)
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
         for _ in range(10):
             try:
                 os.replace(tmp, path)
                 return
             except PermissionError:
                 time.sleep(0.02)
-        path.write_text(text, encoding="utf-8")
+        path.write_bytes(data)
     finally:
         try:
             tmp.unlink()
         except OSError:
             pass
+
+
+def write_text_atomic(path, text):
+    write_bytes_atomic(path, text.encode("utf-8"))
 
 
 def write_json(path, data):

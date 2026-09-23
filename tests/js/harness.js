@@ -94,7 +94,9 @@ context.window = context;
 vm.createContext(context);
 
 // The page's scripts in document order: inline code, and the app's own
-// /static/ files (loaded from disk). External scripts such as Leaflet are skipped.
+// /static/ files (loaded from disk). Leaflet (/static/leaflet/) needs a real
+// browser, so it is skipped: pages then take the no-Leaflet path, and a test
+// can supply a stand-in `window.L`. External scripts are skipped too.
 function pageScripts(pagePath) {
   const path = require("path");
   const appRoot = path.resolve(path.dirname(pagePath), "..");
@@ -106,7 +108,7 @@ function pageScripts(pagePath) {
     const src = /\ssrc\s*=\s*["']([^"']+)["']/.exec(m[1] || "");
     n += 1;
     if (!src) out.push({ name: `${pagePath}#script${n}`, code: m[2] });
-    else if (src[1].startsWith("/static/")) {
+    else if (src[1].startsWith("/static/") && !src[1].startsWith("/static/leaflet/")) {
       const file = path.join(appRoot, src[1].replace(/\?.*$/, ""));
       out.push({ name: file, code: fs.readFileSync(file, "utf8") });
     }

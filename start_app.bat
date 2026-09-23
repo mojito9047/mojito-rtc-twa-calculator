@@ -10,11 +10,6 @@ if not exist .venv\Scripts\python.exe (
 
 echo Starting Mojito RTC TWA Calculator...
 echo.
-echo Open this on the Expedition PC:
-echo   http://localhost:8765
-echo.
-echo From another device on the same network, use:
-echo   http://THIS-PC-IP-ADDRESS:8765
-echo.
+rem The app prints the addresses to open, on this PC and from other devices.
 call .venv\Scripts\python.exe app.py
 pause

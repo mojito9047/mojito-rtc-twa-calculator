@@ -10,11 +10,11 @@ A round-the-cans course is announced only minutes before the start, and the crew
 - **On every screen aboard.** The Expedition PC, a tablet or phone, and the B&G chart plotter, where the app has its own tile. The displays share the current leg, so stepping on at a mark updates them all. The phone and plotter also show the bearing to the next mark and the bearing of the leg after it.
 - **Marks ready before going afloat.** Type them in, in degrees and minutes as they appear on the chart, or import them from an Expedition marks XML file. A Race Officer course brings its own mark positions.
 
-The app runs on the Expedition PC and the other screens open it over the boat network. Nothing needs the internet except the Race Officer app (when it is reached over the internet) and the course chart's map; without a connection the chart is drawn without the map.
+The app runs on the Expedition PC and the other screens open it over the boat network. Nothing needs the internet except the Race Officer app (when it is reached over the internet) and the course chart's map tiles the first time an area is viewed: the app keeps every tile it shows, so an area looked at before going afloat is on the chart without a connection.
 
 ## Race day
 
-1. **Before going out.** Start the app (see [Installing](#installing)). Check that **Settings → Instruments** shows the instruments connected, and that **Edit marks** has the day's marks, importing them from Expedition if needed. If the committee is using the Race Officer app, turn on auto-import on the **Race Officer import** page.
+1. **Before going out.** Start the app (see [Installing](#installing)). Check that **Settings → Instruments** shows the instruments connected, and that **Edit marks** has the day's marks, importing them from Expedition if needed. If the committee is using the Race Officer app, turn on auto-import on the **Race Officer import** page. While there is still internet, look over the race area on the **Wind & Course** chart, zooming in as far as you will want on the water, so its map is saved.
 2. **When the course is announced.** With auto-import on, it appears by itself. Otherwise enter it on **Wind & Course**, using the P and S buttons beside each mark, and check it on the chart below.
 3. **Before the start.** **Course legs** shows the sail for every leg, so the crew can plan the sail changes. The start bar counts down to the first start.
 4. **Racing.** At each mark, press **Next leg** on any display. The phone and plotter show the bearing to the next mark, and all the figures follow the wind as it shifts.
@@ -25,8 +25,8 @@ Download `mojito_rtc_twa_calculator_vNN.zip` from the [latest release](https://g
 
 1. Unzip it on the Expedition PC, into the folder that holds any earlier version, so the versions sit side by side (for example `Documents\Mojito\mojito_rtc_twa_calculator_v71`).
 2. Double-click `install.bat` in the new folder. It sets up Python's environment, then looks for the most recently used earlier version beside it and offers to copy its settings, marks and course across. Answer `Y` to carry on where the last version left off.
-3. Close the earlier version's `start_app.bat` window if it is running (both use port 8765).
-4. Double-click `start_app.bat` in the new folder.
+3. Close the earlier version's `start_app.bat` window if it is running (both use port 8765; the new one will not start beside it).
+4. Double-click `start_app.bat` in the new folder. Its window shows the addresses to open, on this PC and from other devices, and must stay open while the app is in use.
 5. Open the app, and check the version at the top right of the page:
 
 ```text
@@ -43,7 +43,7 @@ You may need to allow Python through Windows Firewall the first time.
 
 To check a new version on the PC before racing, double-click `run_tests.bat` (see [Testing](#testing)). Once the new version is working, the earlier version's folder can be deleted.
 
-With `Y`, the installer copies `settings.json`, the `runtime` folder (marks, course, current leg, manual wind, Race Officer state) and any sail chart, polar or marks file chosen in Settings that the new version does not have. If the earlier folder's sail chart or polar has been edited, the installer says so; copy it across by hand to keep the edits.
+With `Y`, the installer copies `settings.json`, the `runtime` folder (marks, course, current leg, manual wind, Race Officer state, saved map tiles) and any sail chart, polar or marks file chosen in Settings that the new version does not have. If the earlier folder's sail chart or polar has been edited, the installer says so; copy it across by hand to keep the edits.
 
 ## Pages
 
@@ -104,6 +104,7 @@ State the app rewrites while running, in `runtime/` (not tracked in git; created
 | `runtime/display_wind.json` | TWD/TWS last shown on the Course legs page (fallback when the instruments have no TWD). |
 | `runtime/wind_history.jsonl` | Rolling one-hour TWD/TWS history. |
 | `runtime/race_officer_poll_state.json` | Last Race Officer poll: status, course signature, race and start info. |
+| `runtime/tiles/` | Course chart map tiles, saved as they are shown, for use with no internet. Safe to delete (they are fetched again when next viewed online). |
 
 `marks.json` and `course.json` are copied from the example files when missing. Files left in the app folder by v60 or earlier are moved into `runtime/` automatically.
 
@@ -172,13 +173,14 @@ Details: [docs/RACE_OFFICER_INTEGRATION.md](docs/RACE_OFFICER_INTEGRATION.md).
 
 ## Course chart
 
-On the **Wind & Course** page, under the course editor; it redraws as marks are added, roundings chosen, or the course typed, undone or cleared.
+On the **Wind & Course** page, under the course editor; it redraws as marks are added, roundings chosen, or the course typed, undone or cleared. With no course yet it shows every mark, then zooms in to the course as it is built.
 
-- all marks are drawn as grey reference labels, route marks as numbered labels
+- each mark on the course is a dot with its ID, labelled once however often it is rounded, with *Start* and *Finish*; marks not on the course are small grey dots
+- the legs are numbered in circles, so a leg number cannot be taken for a mark; a leg sailed twice shows both numbers (`4, 7`)
 - each leg is coloured by the rounding at its end: red port, green starboard, dark for start, via or unspecified
 - the run to the finish of a shortened course is dashed
 - arrows show the direction of each leg
-- on OpenStreetMap with the OpenSeaMap seamarks when there is an internet connection; without one, as a plain drawing of the marks and legs
+- on OpenStreetMap with the OpenSeaMap seamarks; each map tile shown is saved, so without an internet connection the map is still there wherever it has been viewed before (anywhere else is blank)
 
 Details: [docs/COURSE_CHART.md](docs/COURSE_CHART.md).
 
@@ -213,6 +215,7 @@ The main ones:
 | `/api/race_officer/poll_once` | Run one poll. |
 | `/api/mfd_status` | MFD advertisement payloads. |
 | `/api/health` | Whether the instrument source is connected. |
+| `/tiles/<layer>/<z>/<x>/<y>.png` | Course chart map tiles (`osm`, `seamark`), from the saved copy or the internet. |
 
 All endpoints, with their fields: [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
 
@@ -252,13 +255,13 @@ The instrument source has no position (or the source is *Manual wind*). Check it
 
 Open **Settings → Instruments**: the status line says whether the source is connected and what it is receiving. For the H5000 or a plotter, check the address and port, and that this PC is on the boat network. Switch to another source if one is down, or to *Manual wind* if none is working.
 
-### The course chart has no map
+### The course chart map is blank
 
-The map tiles come from the internet. Without a connection the chart is drawn without the map; the marks, legs and roundings are still shown.
+Without the internet the chart only has the map where it has been viewed before, at the zoom levels viewed; elsewhere it is blank, but the marks, legs and roundings are still shown. Before going afloat, look over the race area on the chart at the zooms you will want. The saved tiles are in `runtime/tiles/`.
 
-### `start_app.bat` closes at once, or the page is still the old version
+### `start_app.bat` says *Is the app already running?*, or the page is still the old version
 
-Another version is still running on port 8765. Close its `start_app.bat` window, then start the new one again.
+Another version (or another copy) is still running on port 8765. Close its `start_app.bat` window, then start the new one again.
 
 ### The MFD shows an old course
 
@@ -277,7 +280,7 @@ More: [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).
 
 ## Licence
 
-MIT: see [LICENSE](LICENSE). The bundled fonts (Archivo, Archivo Narrow, IBM Plex Mono) are not covered by it: they are under the SIL Open Font Licence ([static/fonts/OFL.txt](static/fonts/OFL.txt)). The main page's styling comes from the Pwllheli Race Officer app by CapeNet Ltd.
+MIT: see [LICENSE](LICENSE). The bundled fonts (Archivo, Archivo Narrow, IBM Plex Mono) are not covered by it: they are under the SIL Open Font Licence ([static/fonts/OFL.txt](static/fonts/OFL.txt)). The main page's styling comes from the Pwllheli Race Officer app by CapeNet Ltd. The course chart uses [Leaflet](https://leafletjs.com) 1.9.4 (BSD 2-clause, [static/leaflet/LICENSE](static/leaflet/LICENSE)); the map is © OpenStreetMap contributors and the seamarks © OpenSeaMap contributors. The release zip also carries Flask (BSD 3-clause) and Waitress (ZPL 2.1) as wheels.
 
 ## Version history
 
@@ -376,3 +379,11 @@ Uses the Race Officer public API from Race Officer v1.011.
 ### v72
 
 - `LICENSE` is the standard MIT text, so GitHub shows the repository as MIT licensed. The note that the bundled fonts are under the SIL Open Font Licence is in the README's Licence section and `static/fonts/OFL.txt`.
+
+### v73
+
+- Course chart: with no course set, it now shows every mark, framed to fit them all, instead of the message *Enter or import a course with at least two valid marks*. It zooms in to the course once the second mark is added.
+- Course chart labels: each mark on the course is labelled once with its ID (plus *Start* / *Finish*) beside a dot on its exact position, and the legs are numbered in circles. Before, a label such as `6. 3` (the sixth point, mark 3) read as two mark numbers, and a mark rounded twice showed only its last label. Clicking a mark lists the legs that end there and how it is rounded.
+- Course chart without the internet: Leaflet is now part of the app (`static/leaflet/`), and the app keeps every map tile the chart shows (`runtime/tiles/`), so the map is there on the water wherever it was viewed with a connection. Tiles are refreshed weekly when online; `install.bat` brings them across to a new version.
+- The app is served by Waitress instead of Flask's own development server, so it no longer starts with *WARNING: This is a development server*. The `start_app.bat` window shows the version and the addresses to open. A second copy, or a new version started while an earlier one is still running, now stops with *Is the app already running?* instead of sharing the port.
+- Waitress is a new requirement: installing from the zip includes it, but a git checkout's `.venv` needs `install.bat` run again.
