@@ -277,7 +277,7 @@ More: [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).
 
 ## Licence
 
-MIT: see [LICENSE](LICENSE). The bundled fonts (Archivo, Archivo Narrow, IBM Plex Mono) are under the SIL Open Font Licence ([static/fonts/OFL.txt](static/fonts/OFL.txt)). The main page's styling comes from the Pwllheli Race Officer app by CapeNet Ltd.
+MIT: see [LICENSE](LICENSE). The bundled fonts (Archivo, Archivo Narrow, IBM Plex Mono) are not covered by it: they are under the SIL Open Font Licence ([static/fonts/OFL.txt](static/fonts/OFL.txt)). The main page's styling comes from the Pwllheli Race Officer app by CapeNet Ltd.
 
 ## Version history
 
@@ -372,3 +372,7 @@ Uses the Race Officer public API from Race Officer v1.011.
 - Published at [github.com/mojito9047/mojito-rtc-twa-calculator](https://github.com/mojito9047/mojito-rtc-twa-calculator) under the MIT licence, with each version's zip on the Releases page.
 - The zip carries Flask and its dependencies (`wheels`), so `install.bat` needs no internet. It then offers to copy the settings, marks and course from the most recently used earlier version beside it (`copy_previous_install.py`).
 - `settings.json` is no longer in git or the zip: it belongs to each install. A fresh install starts from the defaults, now with the club's Race Officer server (`https://pro.pwllhelisailingclub.org`) as the address.
+
+### v72
+
+- `LICENSE` is the standard MIT text, so GitHub shows the repository as MIT licensed. The note that the bundled fonts are under the SIL Open Font Licence is in the README's Licence section and `static/fonts/OFL.txt`.

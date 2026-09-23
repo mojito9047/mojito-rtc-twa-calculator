@@ -28,7 +28,7 @@
 | `tests/` | Test suite; see [TESTING.md](TESTING.md). |
 | `install.bat`, `copy_previous_install.py` | Installing on the boat PC: Flask from the zip's `wheels/`, then settings, marks and course copied from the previous version's folder. |
 | `tools/release.py`, `make_release.bat` | Building and publishing a release; see [RELEASING.md](RELEASING.md). In git, not in the zip. |
-| `LICENSE` | MIT. The fonts are under the SIL OFL (`static/fonts/OFL.txt`). |
+| `LICENSE` | MIT, the standard text so GitHub recognises it. The fonts are not covered: they are under the SIL OFL (`static/fonts/OFL.txt`, and the README's Licence section). |
 | `runtime/` | State the app rewrites while running. Not in git. |
 | `marks.example.json`, `course.example.json` | Starting marks and course, copied into `runtime/` when missing. |
 
