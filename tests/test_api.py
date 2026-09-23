@@ -567,6 +567,16 @@ class PageTests(AppTestCase):
         headings = re.findall(r"^### (v\d+)\s*$", readme, re.M)
         self.assertEqual(max(headings, key=lambda v: int(v[1:])), VERSION)
 
+    def test_readme_history_is_the_published_releases(self):
+        # GitHub has releases from v71; the notes for earlier versions are kept separately.
+        root = Path(__file__).resolve().parents[1]
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        history = readme[readme.index("## Version history"):]
+        self.assertEqual(min(int(v) for v in re.findall(r"^### v(\d+)\s*$", history, re.M)), 71)
+        earlier = (root / "docs" / "EARLIER_VERSIONS.md").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"^## v(\d+)\s*$", earlier, re.M), [str(v) for v in range(60, 71)])
+        self.assertIn("docs/EARLIER_VERSIONS.md", history)
+
     def test_sections_are_tabs(self):
         html = self.client.get("/").data.decode()
         nav = html[html.index('role="tablist"'):html.index("</nav>")]

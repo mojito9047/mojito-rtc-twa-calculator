@@ -42,9 +42,9 @@ class ReleaseToolTests(unittest.TestCase):
 
     def test_release_notes_are_the_readme_section(self):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        notes = self.release.release_notes("v70", readme)
-        self.assertTrue(notes.startswith("- The main page uses the Pwllheli Race Officer's look"))
-        self.assertIn("Every page shows the app version", notes)
+        notes = self.release.release_notes("v71", readme)
+        self.assertTrue(notes.startswith("- Releases: `make_release.bat` builds"))
+        self.assertIn("under the MIT licence", notes)
         self.assertNotIn("### v", notes)
         self.assertTrue(self.release.release_notes(VERSION, readme))          # this version has notes
         with self.assertRaises(self.release.ReleaseError):
