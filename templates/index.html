@@ -1,0 +1,280 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>RTC TWA Calculator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <link rel="stylesheet" href="/static/fonts.css">
+  <link rel="stylesheet" href="/static/index.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="appHeader">
+      <img src="/static/mojito-logo.png" alt="Mojito">
+      <h1>RTC TWA Calculator</h1>
+      <span class="appVersion" title="App version">{{ app_version }}</span>
+    </header>
+    <!-- One tab per section; the row stays at the top of the screen while scrolling. -->
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button class="tab" role="tab" id="tabCalculator" onclick="showView('calculator')">Wind &amp; Course</button>
+      <button class="tab active" role="tab" id="tabResults" onclick="showView('results')">Course legs</button>
+      <button class="tab" role="tab" id="tabMarks" onclick="showView('marks')">Edit marks</button>
+      <button class="tab" role="tab" id="tabImport" onclick="showView('import')">Import Expedition marks</button>
+      <button class="tab" role="tab" id="tabRaceOfficer" onclick="showView('raceOfficer')">Race Officer import</button>
+      <button class="tab" role="tab" id="tabSettings" onclick="showView('settings')">Settings</button>
+    </nav>
+
+    <div id="calculatorView" class="view">
+
+    <!-- Wind: one strip. The boxes are editable when the instrument source is Manual wind. -->
+    <div class="card windStrip">
+      <div class="row">
+        <span id="windMode" class="windMode">Wind: —</span>
+        <label for="twd" class="inlineLabel">TWD</label>
+        <input id="twd" class="compactNumber" type="number" min="0" max="359" step="1" value="" disabled />
+        <span class="unit">°T</span>
+        <label for="tws" class="inlineLabel">TWS</label>
+        <input id="tws" class="compactNumber" type="number" min="0" max="80" step="0.1" value="" disabled />
+        <span class="unit">kt</span>
+        <span id="status" class="status">Starting…</span>
+      </div>
+      <div id="windModeHelp" hidden class="small windStripNotes">To use the instruments again, change the source in <a href="#" onclick="showView('settings'); return false;">Settings → Instruments</a>.</div>
+    </div>
+
+    <div class="card">
+        <h2>Course</h2>
+        <label>Course marks, separated by spaces or hyphens</label>
+        <input id="course" type="text" value="" placeholder="Click marks below or type a course, e.g. B F S E Q" />
+        <div class="row" style="margin-top:12px;">
+          <button onclick="render()">Update</button>
+          <button class="secondary" onclick="undoLastCourseMark()">Undo last mark</button>
+          <button class="secondary" onclick="clearCourse()">Clear course</button>
+          <button onclick="showView('results')">View course legs</button>
+        </div>
+        <div style="margin-top:8px;"><span class="small">Available RTC marks — add each mark as a port or starboard rounding:</span><div id="markPills"></div></div>
+        <div class="small" style="margin-top:8px;">Course and mark-rounding choices are saved on the Expedition PC and shared with other devices viewing the app. Use the red P or green S buttons to add the next mark with its rounding side.</div>
+      </div>
+
+      <!-- Course chart: redrawn as the course is built. -->
+      <div class="card">
+        <div class="row" style="justify-content:space-between;">
+          <div>
+            <h2 style="margin:0;">Course chart</h2>
+            <p class="small">The course as it is being built. Red legs lead to port roundings; green legs lead to starboard roundings.</p>
+          </div>
+          <button class="secondary" onclick="renderCourseChart()">Refresh chart</button>
+        </div>
+        <div class="chartLegend">
+          <span><span class="legendLine legendPort"></span>Port rounding</span>
+          <span><span class="legendLine legendStarboard"></span>Starboard rounding</span>
+          <span><span class="legendLine legendOther"></span>Start/unspecified; dashed = run to the finish</span>
+        </div>
+        <div class="courseChartWrap" style="margin-top:12px;">
+          <div id="courseChartMap"></div>
+        </div>
+        <div id="courseChartStatus" class="status"></div>
+      </div>
+    </div>
+
+    <div id="resultsView" class="view active">
+    <div class="card">
+      <div class="row" style="justify-content:space-between;">
+        <div>
+          <h2 id="tableTitle" style="margin:0;">Course legs</h2>
+          <div class="windSummary" id="courseLegsWindSummary">
+            <span class="windChip">TWD —</span>
+            <span class="windChip">TWS —</span>
+          </div>
+          <div class="legNav">
+            <button class="secondary" onclick="moveCurrentLeg(-1)">◀ Previous leg</button>
+            <button class="secondary" onclick="moveCurrentLeg(1)">Next leg ▶</button>
+            <span class="legNavStatus" id="currentLegStatus">Leg —</span>
+          </div>
+          <div id="raceStartBar"></div>
+        </div>
+        <span class="row">
+          <button class="secondary" onclick="window.open('/phone', 'mojitoPhoneView')">Open phone view</button>
+          <button class="secondary" onclick="toggleAllLegs()" id="allLegsButton">Show all legs</button>
+        </span>
+      </div>
+      
+      <div id="routeTableWrap" style="overflow:auto;">
+        <table>
+          <thead><tr><th>Leg</th><th>Round</th><th>Range</th><th>Bearing</th><th>TWA</th><th>Sail</th><th>Target BSP</th><th>Leg time</th><th>Side</th><th>Point of sail</th></tr></thead>
+          <tbody id="legs"></tbody>
+        </table>
+      </div>
+      <div id="matrixWrap" style="display:none; overflow:auto; max-height:70vh;">
+        <table class="matrix">
+          <thead id="matrixHead"></thead>
+          <tbody id="matrixBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    </div>
+
+
+    <div id="marksView" class="view">
+      <div class="card">
+        <h2>Edit marks</h2>
+        <p>Positions are in degrees and decimal minutes, e.g. <span class="mono">50 39.330N</span> and <span class="mono">01 55.170W</span>. You can also type <span class="mono">50° 39.33'N</span> or decimal degrees; they are saved in the same form. Changes are saved to <strong>runtime/marks.json</strong>.</p>
+        <div class="row" style="margin-top:12px;">
+          <button onclick="addMarkRow()">Add mark</button>
+          <button onclick="saveMarks()">Save marks</button>
+          <button class="secondary" onclick="loadMarks()">Reload from file</button>
+        </div>
+        <div id="marksEditStatus" class="status"></div>
+        <div style="overflow:auto; margin-top:12px;">
+          <table class="markEditTable">
+            <thead><tr><th>ID</th><th>Name</th><th>Latitude</th><th>Longitude</th><th></th></tr></thead>
+            <tbody id="marksEditor"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div id="importView" class="view">
+      <div class="card">
+        <h2>Import Expedition marks</h2>
+        <p>Choose or browse for the Expedition marks XML file in <strong>Settings</strong>, then choose a group to import. The uploaded sample file format uses mark entries with <span class="mono">group</span>, <span class="mono">lat</span>, and <span class="mono">lon</span> attributes.</p>
+        <div class="row" style="margin-top:12px;">
+          <button onclick="loadExpeditionGroups()">Reload groups from marks.xml</button>
+          <label class="row" style="margin:0;font-weight:500;"><input id="replaceMarksOnImport" type="checkbox" checked /> Replace current marks</label>
+        </div>
+        <div id="importStatus" class="status"></div>
+        <div style="overflow:auto; margin-top:12px;">
+          <table>
+            <thead><tr><th>Group</th><th>Marks</th><th>Action</th></tr></thead>
+            <tbody id="expeditionGroups"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+
+    
+    <!-- Race Officer import page: reads /api/current_race_course from the race app. -->
+    <div id="raceOfficerView" class="view">
+      <div class="card">
+        <h2>Race Officer import</h2>
+        <p>Imports the active course from the Race Officer app endpoint <span class="mono">/api/current_race_course</span>. It imports the full mark database, current course sequence, repeated marks, and port/starboard roundings.</p>
+        <p class="small">Nothing is imported until the race officer has set a course. A shortened course is imported as it is being sailed, ending with a run to the finish (mark <span class="mono">FIN</span>). Waypoints show as <em>Via</em> legs.</p>
+        <div class="row" style="margin-top:12px;">
+          <span class="small">Race Officer app: <span id="raceOfficerBaseShown" class="mono">—</span></span>
+          <a href="#" class="small" onclick="showView('settings'); return false;">Change in Settings</a>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button onclick="previewRaceOfficerCurrent()">Preview current course</button>
+          <button class="secondary" onclick="importRaceOfficerCurrent()">Import current course</button>
+        </div>
+
+        <div class="row" style="margin-top:12px; align-items:center;">
+          <label class="row" style="margin:0;font-weight:700;">
+            <input id="raceOfficerPollEnabled" type="checkbox" onchange="setRaceOfficerPolling()" />
+            Auto-import when Race Officer course changes
+          </label>
+          <label style="margin:0 0 0 12px;">Poll every</label>
+          <input id="raceOfficerPollInterval" type="number" min="5" max="300" value="10" style="width:90px;" onchange="setRaceOfficerPolling()" />
+          <span class="small">seconds</span>
+          <button class="secondary" onclick="pollRaceOfficerOnce()">Check now</button>
+        </div>
+
+        <div id="raceOfficerStatus" class="status"></div>
+        <div id="raceOfficerPollStatus" class="small" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+<div id="settingsView" class="view">
+      <!-- Every input with data-setting is saved by the bar at the bottom; editing one marks the page unsaved. -->
+      <div class="card settingsSection">
+        <h2>Instruments</h2>
+        <p class="small">Where live wind, boat speed, heading and position come from. Directions are used as degrees true from every source. Choose <em>Manual wind</em> when no instruments are available; every display then shows that the wind is manual.</p>
+        <div class="settingsField">
+          <label for="instrumentSource">Instrument source</label>
+          <select id="instrumentSource" data-setting onchange="showInstrumentSourceFields()">
+            <option value="expedition">Expedition on this PC</option>
+            <option value="h5000">B&amp;G H5000 websocket</option>
+            <option value="nmea0183">NMEA 0183 over IP (plotter)</option>
+            <option value="manual">Manual wind: no instruments, TWD and TWS entered on the Wind &amp; Course page</option>
+          </select>
+        </div>
+        <div id="h5000Fields" class="row settingsField">
+          <div class="grow"><label for="h5000Host">H5000 address</label><input id="h5000Host" type="text" data-setting placeholder="192.168.15.149" /></div>
+          <div class="port"><label for="h5000Port">Port</label><input id="h5000Port" type="number" data-setting min="1" max="65535" placeholder="2053" /></div>
+        </div>
+        <div id="nmeaFields" class="row settingsField">
+          <div class="grow"><label for="nmeaHost">Plotter address</label><input id="nmeaHost" type="text" data-setting placeholder="192.168.15.166" /></div>
+          <div class="port"><label for="nmeaPort">Port</label><input id="nmeaPort" type="number" data-setting min="1" max="65535" placeholder="10110" /></div>
+        </div>
+        <div id="instrumentStatus" class="status"></div>
+
+      </div>
+
+      <div class="card settingsSection">
+        <h2>Race Officer</h2>
+        <p class="small">The Pwllheli Race Officer app the course, start time and postponements are read from. Importing and auto-import are on the <a href="#" onclick="showView('raceOfficer'); return false;">Race Officer import</a> page.</p>
+        <div class="settingsField">
+          <label for="raceOfficerApiBase">Race Officer address</label>
+          <input id="raceOfficerApiBase" type="text" data-setting placeholder="https://pro.pwllhelisailingclub.org" />
+          <div class="small">The club server, <span class="mono">https://pro.pwllhelisailingclub.org</span>, or a Race Officer PC on the boat network, e.g. <span class="mono">http://192.168.1.20:5050</span>.</div>
+        </div>
+        <div id="raceOfficerSettingsStatus" class="status"></div>
+      </div>
+
+      <div class="card settingsSection">
+        <div class="row" style="justify-content:space-between;">
+          <h2 style="margin:0;">Files</h2>
+          <button class="secondary" onclick="checkFileStatus()">Check files</button>
+        </div>
+        <p class="small">The sail chart, polar and Expedition marks the app reads. Relative paths are in the app folder; full Windows paths also work. <em>Use selected</em> copies a file into the app folder and saves the setting straight away.</p>
+
+        <div class="settingsField">
+          <label for="sailchartFile">Sail chart</label>
+          <input id="sailchartFile" type="text" data-setting placeholder="SailChart J122 North.txt" />
+          <div class="row fileRow">
+            <input id="sailchartBrowse" type="file" />
+            <button class="secondary" onclick="uploadSelectedFile('sailchart')">Use selected sail chart</button>
+          </div>
+        </div>
+
+        <div class="settingsField">
+          <label for="polarFile">Polar</label>
+          <input id="polarFile" type="text" data-setting placeholder="J122.txt" />
+          <div class="row fileRow">
+            <input id="polarBrowse" type="file" accept=".txt,.pol,.csv,text/plain" />
+            <button class="secondary" onclick="uploadSelectedFile('polar')">Use selected polar file</button>
+          </div>
+          <div class="small">Expedition polar format: first column is TWS, then TWA / target boat-speed pairs.</div>
+        </div>
+
+        <div class="settingsField">
+          <label for="expeditionMarksFile">Expedition marks XML</label>
+          <input id="expeditionMarksFile" type="text" data-setting placeholder="marks.xml" />
+          <div class="row fileRow">
+            <input id="marksBrowse" type="file" accept=".xml,text/xml" />
+            <button class="secondary" onclick="uploadSelectedFile('marks')">Use selected marks XML</button>
+          </div>
+        </div>
+
+        <div id="fileStatus" class="small" style="margin-top:10px;"></div>
+      </div>
+
+      <!-- Always on screen while the Settings page is open. -->
+      <div class="settingsActions">
+        <button onclick="saveSettings()">Save settings</button>
+        <button class="secondary" onclick="loadSettings()">Discard changes</button>
+        <span id="settingsDirty" class="dirtyNote" hidden>Unsaved changes</span>
+        <span id="settingsStatus" class="status"></span>
+      </div>
+    </div>
+  </div>
+
+<script src="/static/legs.js"></script>
+<script src="/static/race_start.js"></script>
+<script src="/static/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+[
+  {
+    "id": "1",
+    "name": "Partington Marine",
+    "lat": "52.8783333333",
+    "lon": "-4.405"
+  },
+  {
+    "id": "10",
+    "name": "Mark 10",
+    "lat": "52.8895833333",
+    "lon": "-4.34855"
+  },
+  {
+    "id": "2",
+    "name": "Firmhelm Marine",
+    "lat": "52.8733333333",
+    "lon": "-4.4263333333"
+  },
+  {
+    "id": "3",
+    "name": "Mark 3",
+    "lat": "52.8625",
+    "lon": "-4.4283333333"
+  },
+  {
+    "id": "4",
+    "name": "Mark 4",
+    "lat": "52.8583333333",
+    "lon": "-4.4041666667"
+  },
+  {
+    "id": "5",
+    "name": "Mark 5",
+    "lat": "52.8625",
+    "lon": "-4.3833333333"
+  },
+  {
+    "id": "6",
+    "name": "Mark 6",
+    "lat": "52.8758333333",
+    "lon": "-4.3858333333"
+  },
+  {
+    "id": "7",
+    "name": "S&S Tyres",
+    "lat": "52.8806666667",
+    "lon": "-4.3928333333"
+  },
+  {
+    "id": "8",
+    "name": "Mark 8",
+    "lat": "52.8666666667",
+    "lon": "-4.4116666667"
+  },
+  {
+    "id": "9",
+    "name": "Mark 9",
+    "lat": "52.8666666667",
+    "lon": "-4.3983333333"
+  },
+  {
+    "id": "AA",
+    "name": "Carreg Y Trai / St Tudwal's Island corner Aa",
+    "lat": "52.795118333333335",
+    "lon": "-4.47205"
+  },
+  {
+    "id": "AB",
+    "name": "Carreg Y Trai / St Tudwal's Island corner Ab",
+    "lat": "52.80231166666667",
+    "lon": "-4.444648333333333"
+  },
+  {
+    "id": "C",
+    "name": "Causeway",
+    "lat": "52.6868333333",
+    "lon": "-4.4221666667"
+  },
+  {
+    "id": "E",
+    "name": "Eurwyn",
+    "lat": "52.7833333333",
+    "lon": "-4.3666666667"
+  },
+  {
+    "id": "F",
+    "name": "Pwllheli Fairway",
+    "lat": "52.88333333333333",
+    "lon": "-4.381666666666667"
+  },
+  {
+    "id": "M",
+    "name": "Madog Fairway TBC",
+    "lat": "52.8828333333",
+    "lon": "-4.1866666667"
+  },
+  {
+    "id": "O",
+    "name": "Outer Distance Mark (Welsh Water)",
+    "lat": "52.8791166667",
+    "lon": "-4.3993333333"
+  },
+  {
+    "id": "T",
+    "name": "Tom Buoy",
+    "lat": "52.8366666667",
+    "lon": "-4.3678333333"
+  },
+  {
+    "id": "TC",
+    "name": "Turning Cilan",
+    "lat": "52.77645",
+    "lon": "-4.528532"
+  },
+  {
+    "id": "TP",
+    "name": "Turning Porth Ceiriad",
+    "lat": "52.789298",
+    "lon": "-4.49066"
+  },
+  {
+    "id": "YA",
+    "name": "Gwylan Islands corner Ya",
+    "lat": "52.789985",
+    "lon": "-4.693318333333333"
+  },
+  {
+    "id": "YB",
+    "name": "Gwylan Islands corner Yb",
+    "lat": "52.78449666666667",
+    "lon": "-4.700443333333333"
+  },
+  {
+    "id": "FIN",
+    "name": "Middle of the finish line",
+    "lat": "52.88059",
+    "lon": "-4.4001742"
+  }
+]

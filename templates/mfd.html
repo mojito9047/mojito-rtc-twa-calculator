@@ -1,0 +1,421 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mojito Course Legs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html, body {
+      margin:0;
+      padding:0;
+      width:100%;
+      height:100%;
+      background:#020617;
+      color:#f8fafc;
+      font-family:Arial, Helvetica, sans-serif;
+      overflow:hidden;
+    }
+    .wrap {
+      padding:10px 12px;
+      height:100vh;
+      box-sizing:border-box;
+      display:flex;
+      flex-direction:column;
+    }
+    .tableWrap {
+      flex:1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      overflow-x:hidden;
+      -webkit-overflow-scrolling:touch;
+      border-top:1px solid #334155;
+    }
+    .top {
+      display:block;
+      position:relative;
+      min-height:44px;
+      flex:0 0 auto;
+    }
+    /* Bar under the leg controls: start status | bearing to next mark | next leg */
+    .mfdBar {
+      display:flex;
+      align-items:stretch;
+      margin:0 0 8px 0;
+      border-radius:10px;
+      flex:0 0 auto;
+    }
+    .mfdCell { padding:6px 12px; }
+    .mfdLeft { flex:1 1 40%; min-width:0; }
+    .mfdMid, .mfdRight {
+      flex:0 0 26%;
+      text-align:center;
+      border-left:1px solid rgba(148,163,184,0.4);
+    }
+    .mfdLabel { font-size:13px; font-weight:700; opacity:0.85; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .mfdValue { font-size:28px; font-weight:900; line-height:1.15; }
+    h1 {
+      margin:0 0 10px 0;
+      font-size:30px;
+      font-weight:900;
+      letter-spacing:1px;
+    }
+    .status {
+      position:absolute;
+      right:0;
+      top:8px;
+      color:#cbd5e1;
+      font-size:15px;
+      font-weight:700;
+    }
+    .controls {
+      text-align:center;
+      margin:4px 0 10px 0;
+    }
+    button {
+      background:#334155;
+      color:#f8fafc;
+      border:1px solid #475569;
+      border-radius:7px;
+      padding:8px 14px;
+      font-weight:900;
+      font-size:13px;
+      margin:0 8px;
+    }
+    .legStatus {
+      color:#facc15;
+      font-size:17px;
+      font-weight:900;
+      display:inline-block;
+      min-width:110px;
+    }
+    table {
+      width:100%;
+      border-collapse:collapse;
+      table-layout:fixed;
+      font-size:18px;
+      font-weight:800;
+    }
+    th {
+      background:#1e293b;
+      color:#e2e8f0;
+      padding:4px 6px;
+      text-align:center;
+      border-bottom:1px solid #334155;
+      position:sticky;
+      top:0;
+      z-index:2;
+    }
+    td {
+      padding:8px 6px;
+      border-bottom:1px solid #334155;
+      text-align:center;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    th:first-child, td:first-child { text-align:left; }
+    tr.current td {
+      background:#1e293b;
+      border-top:2px solid #facc15;
+      border-bottom:2px solid #facc15;
+    }
+    tr.current td:first-child { border-left:2px solid #facc15; }
+    tr.current td:last-child { border-right:2px solid #facc15; }
+    .port { color:#f87171; }
+    .starboard { color:#4ade80; }
+    .roundP, .roundS, .roundNone {
+      display:inline-block;
+      min-width:22px;
+      border-radius:6px;
+      padding:2px 6px;
+      color:white;
+      font-weight:900;
+    }
+    .roundP { background:#7f1d1d; }
+    .roundS { background:#14532d; }
+    .roundNone { background:#475569; }
+    .small { font-size:14px; color:#cbd5e1; }
+    .manualWind { background:#b45309; color:#fff7ed; border-radius:6px; padding:1px 6px; font-weight:900; }
+    .error { color:#fca5a5; font-weight:900; padding:20px; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div id="meta" class="status">Loading...</div><div class="small" style="position:absolute;right:0;top:28px;">{{ app_version }} &nbsp;<span id="reloadStamp"></span></div>
+    <div class="controls">
+      <button onclick="moveLeg(-1)">◀ Prev</button>
+      <span id="legStatus" class="legStatus">Leg —</span>
+      <button onclick="moveLeg(1)">Next ▶</button>
+    </div>
+  </div>
+  <div id="mfdBar" class="mfdBar">
+    <div id="raceStartBar" class="mfdCell mfdLeft"></div>
+    <div class="mfdCell mfdMid">
+      <div class="mfdLabel" id="toMarkLabel">To mark</div>
+      <div class="mfdValue" id="toMarkBearing">—</div>
+      <div class="mfdLabel" id="toMarkRange"></div>
+    </div>
+    <div class="mfdCell mfdRight">
+      <div class="mfdLabel" id="nextLegLabel">Next leg</div>
+      <div class="mfdValue" id="nextLegBearing">—</div>
+      <div class="mfdLabel" id="nextLegRange"></div>
+    </div>
+  </div>
+  <div class="tableWrap">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:17%;">Leg</th>
+        <th style="width:11%;">Round</th>
+        <th style="width:11%;">Range</th>
+        <th style="width:13%;">Bearing</th>
+        <th style="width:13%;">TWA</th>
+        <th style="width:11%;">Sail</th>
+        <th style="width:13%;">Target BSP</th>
+        <th style="width:11%;">Leg time</th>
+      </tr>
+    </thead>
+    <tbody id="legs">
+      <tr><td colspan="8" class="small">Loading...</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div id="err" class="error" style="display:none;"></div>
+</div>
+
+<script src="/static/legs.js"></script>
+<script>
+// MFD page deliberately uses legacy JavaScript for older embedded browsers.
+var marks = [];
+var markById = {};
+var courseText = "";
+var courseRoundings = {};
+var sailChart = {twas:[], rows:[]};
+var polarData = {rows:[]};
+var twd = 0;
+var tws = 0;
+var windManual = false;   // the wind is the manual one from the Wind & Course page
+var currentLeg = 0;
+var boatPos = null;   // {latDec, lonDec} from Expedition, or null with no fix
+
+// Leg calculations are in static/legs.js (MojitoLegs), shared with the Course
+// legs and phone pages. These are the names the rest of this page uses.
+var norm360 = MojitoLegs.norm360;
+var angleDiff = MojitoLegs.angleDiff;
+var bearingAndDistance = MojitoLegs.bearingAndDistance;
+function parsePosition(value) { return MojitoLegs.parsePosition(value); }
+function normaliseMarks(raw) { return MojitoLegs.normaliseMarks(raw); }
+function parseCourse(txt) { return MojitoLegs.parseCourse(txt, markById); }
+function side(brg, twdv) { return MojitoLegs.tack(brg, twdv); }
+function sailFor(twa, twsVal) { return MojitoLegs.sailFor(sailChart, twa, twsVal); }
+function targetSpeedInfo(twa, twsVal) { return MojitoLegs.targetSpeedInfo(polarData.rows, twa, twsVal); }
+function getLegs() { return MojitoLegs.routeLegs(parseCourse(courseText), markById, twd); }
+
+// Bar: boat to the next mark, and the next leg (same text as the phone page).
+function renderBearings(legs) {
+  var bar = MojitoLegs.bearingBar(legs, currentLeg, boatPos);
+  for (var id in bar) setText(id, bar[id]);
+}
+
+function xhrJson(url, method, body, cb) {
+  var x = new XMLHttpRequest();
+  method = method || "GET";
+  if (method === "GET") {
+    url += (url.indexOf("?") === -1 ? "?" : "&") + "_=" + new Date().getTime();
+  }
+  x.open(method, url, true);
+  x.onreadystatechange = function() {
+    if (x.readyState === 4) {
+      try {
+        var data = JSON.parse(x.responseText || "{}");
+        if (x.status >= 200 && x.status < 300) cb(null, data);
+        else cb(new Error(data.error || ("HTTP " + x.status)));
+      } catch(e) { cb(e); }
+    }
+  };
+  if (method === "POST") x.setRequestHeader("Content-Type", "application/json");
+  x.send(body ? JSON.stringify(body) : null);
+}
+
+function showErr(msg) {
+  var e = document.getElementById("err");
+  e.style.display = "block";
+  e.innerHTML = msg;
+}
+
+
+function targetSpeed(twa,twsVal) {
+  var info = targetSpeedInfo(twa,twsVal);
+  return info ? info.cmg : null;
+}
+
+function formatTargetBsp(info) {
+  if (!info) return "—";
+  if (info.mode === "upwind" || info.mode === "downwind") {
+    return info.bsp.toFixed(1) + " @" + info.polarTwa.toFixed(0) + "°";
+  }
+  return info.bsp.toFixed(1);
+}
+
+function legTime(nm, sp) {
+  if (!sp || sp<=0) return "—";
+  var m = nm/sp*60;
+  if (m<60) return m.toFixed(1)+"m";
+  var h=Math.floor(m/60), mm=Math.round(m%60);
+  return h+"h"+(mm<10?"0":"")+mm;
+}
+
+function roundBadge(v) {
+  if (v==="P") return '<span class="roundP">P</span>';
+  if (v==="S") return '<span class="roundS">S</span>';
+  if (v==="V") return '<span class="roundNone">Via</span>';
+  if (v==="F") return '<span class="roundNone">Fin</span>';
+  return '<span class="roundNone">—</span>';
+}
+
+function setText(id, text) {
+  var e = document.getElementById(id);
+  if (e) e.innerHTML = text;
+}
+
+// Middle of the bar: boat to the mark at the end of the current leg.
+// Right of the bar: the leg after it, i.e. the course once that mark is rounded.
+
+function render() {
+  document.getElementById("meta").innerHTML = "TWD " + twd.toFixed(0) + "° &nbsp; TWS " + tws.toFixed(1) + " kt" +
+    (windManual ? ' <span class="manualWind">MANUAL</span>' : "");
+  var rs = document.getElementById("reloadStamp");
+  if (rs) rs.innerHTML = "updated " + new Date().toLocaleTimeString();
+  var legs = getLegs();
+  var tbody = document.getElementById("legs");
+  if (!legs.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="small">No course set</td></tr>';
+    document.getElementById("legStatus").innerHTML = "Leg —";
+    renderBearings(legs);
+    return;
+  }
+  if (currentLeg < 0) currentLeg = 0;
+  if (currentLeg > legs.length-1) currentLeg = legs.length-1;
+  renderBearings(legs);
+  document.getElementById("legStatus").innerHTML = (currentLeg+1)+"/"+legs.length+" "+legs[currentLeg].from.id+"→"+legs[currentLeg].to.id;
+  var html = "";
+  for (var i=0; i<legs.length; i++) {
+    var l=legs[i];
+    var key=i+":"+l.from.id+"-"+l.to.id;
+    var rd=courseRoundings[key] || "";
+    var s=side(l.bearing,twd);
+    var cls=s==="P" ? "port" : (s==="S" ? "starboard" : "");
+    var speedInfo = targetSpeedInfo(l.twa,tws);
+    var sp = speedInfo ? speedInfo.cmg : null;
+    html += '<tr'+(i===currentLeg?' class="current"':'')+'>';
+    html += '<td>'+l.from.id+'→'+l.to.id+'</td>';
+    html += '<td>'+roundBadge(rd)+'</td>';
+    html += '<td>'+l.distanceNm.toFixed(2)+'</td>';
+    html += '<td>'+l.bearing.toFixed(0)+'°</td>';
+    html += '<td class="'+cls+'">'+l.twa.toFixed(0)+'° '+s+'</td>';
+    html += '<td>'+sailFor(l.twa,tws)+'</td>';
+    html += '<td>'+formatTargetBsp(speedInfo)+'</td>';
+    html += '<td>'+legTime(l.distanceNm,sp)+'</td>';
+    html += '</tr>';
+  }
+  tbody.innerHTML = html;
+}
+
+function loadAll() {
+  var remaining = 5;
+  var failed = false;
+  function done(err) {
+    if (err && !failed) { failed=true; showErr(err.message); }
+    remaining--;
+    if (remaining===0 && !failed) render();
+  }
+
+  xhrJson("/api/marks","GET",null,function(e,d){ if(!e){ marks=normaliseMarks(d.marks||[]); markById={}; for(var i=0;i<marks.length;i++) markById[marks[i].id]=marks[i]; } done(e); });
+  xhrJson("/api/course","GET",null,function(e,d){ if(!e){ courseText=d.course||""; courseRoundings=d.roundings||{}; } done(e); });
+  xhrJson("/api/current_leg","GET",null,function(e,d){ if(!e){ currentLeg=Number(d.current_leg||0); } done(e); });
+  xhrJson("/api/sailchart","GET",null,function(e,d){ if(!e){ sailChart={twas:d.twas||[],rows:d.rows||[]}; } done(e); });
+  xhrJson("/api/polar","GET",null,function(e,d){ if(!e){ polarData={rows:d.rows||[]}; } done(e); });
+  refreshWind();
+}
+
+// The wind for the legs comes from /api/wind: the instruments, or the manual
+// wind when the instrument source is Manual wind (then marked MANUAL).
+function refreshWind() {
+  xhrJson("/api/wind","GET",null,function(windErr,w){
+    if(!windErr && w) {
+      windManual = !!w.manual;
+      if(typeof w.twd === "number") twd = norm360(w.twd);
+      if(typeof w.tws === "number") tws = Math.max(0, w.tws);
+    }
+    xhrJson("/api/position","GET",null,function(posErr,pos){
+      boatPos = (!posErr && pos && pos.ok) ? {latDec:pos.lat, lonDec:pos.lon} : null;
+      render();
+    });
+  });
+}
+
+function moveLeg(delta) {
+  var legs = getLegs();
+  if (!legs.length) return;
+  currentLeg = Math.max(0, Math.min(legs.length-1, currentLeg+delta));
+  xhrJson("/api/current_leg","POST",{current_leg:currentLeg},function(){ render(); });
+}
+
+function reloadCourseData() {
+  var remaining = 5;
+  var failed = false;
+
+  function done(err) {
+    if (err && !failed) {
+      failed = true;
+      showErr(err.message);
+    }
+    remaining--;
+    if (remaining === 0 && !failed) render();
+  }
+
+  xhrJson("/api/marks","GET",null,function(e,d){
+    if(!e){
+      marks=normaliseMarks(d.marks||[]);
+      markById={};
+      for(var i=0;i<marks.length;i++) markById[marks[i].id]=marks[i];
+    }
+    done(e);
+  });
+
+  xhrJson("/api/course","GET",null,function(e,d){
+    if(!e){
+      courseText=d.course||"";
+      courseRoundings=d.roundings||{};
+    }
+    done(e);
+  });
+
+  xhrJson("/api/current_leg","GET",null,function(e,d){
+    if(!e){ currentLeg=Number(d.current_leg||0); }
+    done(e);
+  });
+
+  xhrJson("/api/sailchart","GET",null,function(e,d){
+    if(!e){ sailChart={twas:d.twas||[],rows:d.rows||[]}; }
+    done(e);
+  });
+
+  xhrJson("/api/polar","GET",null,function(e,d){
+    if(!e){ polarData={rows:d.rows||[]}; }
+    done(e);
+  });
+}
+
+loadAll();
+setInterval(refreshWind, 1000);
+setInterval(function(){
+  xhrJson("/api/current_leg","GET",null,function(e,d){ if(!e){ currentLeg=Number(d.current_leg||0); render(); } });
+}, 2000);
+setInterval(reloadCourseData, 5000);
+</script>
+<script src="/static/race_start.js"></script>
+<script>MojitoRaceStart.attach("raceStartBar", {theme: "dark", frame: "mfdBar"});</script>
+</body>
+</html>

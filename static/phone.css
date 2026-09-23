@@ -1,0 +1,215 @@
+/* Phone/tablet page (templates/phone.html). */
+.manualWind { background:#b45309; color:#fff7ed; border-radius:6px; padding:1px 6px; font-weight:900; }
+:root {
+  --bg:#020617;
+  --card:#0f172a;
+  --line:#334155;
+  --text:#f8fafc;
+  --muted:#cbd5e1;
+  --port:#f87171;
+  --starboard:#4ade80;
+  --portBg:#7f1d1d;
+  --starboardBg:#14532d;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+}
+.wrap { padding:8px; }
+.top {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+}
+h1 {
+  margin:0;
+  font-size:clamp(15px, 2.4vw, 22px);
+  white-space:nowrap;
+}
+.appVersion { font-size:0.6em; font-weight:400; color:var(--muted); }
+.meta {
+  color:var(--muted);
+  font-size:clamp(10px, 1.6vw, 14px);
+  text-align:right;
+  white-space:nowrap;
+}
+table {
+  width:100%;
+  border-collapse:collapse;
+  table-layout:fixed;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:10px;
+  overflow:hidden;
+  font-size:clamp(10px, 1.55vw, 15px);
+}
+th, td {
+  border-bottom:1px solid var(--line);
+  padding:clamp(3px, .7vw, 7px);
+  text-align:center;
+  vertical-align:middle;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+th {
+  color:#e2e8f0;
+  background:#1e293b;
+  font-weight:800;
+}
+td:first-child, th:first-child {
+  text-align:left;
+  font-weight:900;
+}
+tr:last-child td { border-bottom:0; }
+.leg { width:13%; }
+.round { width:10%; }
+.range { width:10%; }
+.bearing { width:10%; }
+.twa { width:12%; font-weight:900; }
+.sail { width:10%; font-weight:900; }
+.bsp { width:12%; }
+.time { width:13%; font-weight:900; }
+.port { color:var(--port); }
+.starboard { color:var(--starboard); }
+.roundBadge {
+  display:inline-block;
+  min-width:22px;
+  border-radius:7px;
+  padding:2px 5px;
+  font-weight:900;
+  color:white;
+}
+.roundP { background:var(--portBg); }
+.roundS { background:var(--starboardBg); }
+.roundNone { background:#475569; color:#e2e8f0; }
+/* Bar: start status | bearing to next mark | next leg. The start status
+   takes a line of its own when the phone is too narrow for all three. */
+.phoneBar {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:stretch;
+  margin:6px 0;
+  border-radius:10px;
+}
+.phoneCell { padding:6px 10px; min-width:0; }
+.phoneLeft { flex:1 1 240px; }
+.phoneMid, .phoneRight {
+  flex:1 1 110px;
+  text-align:center;
+  border-left:1px solid rgba(148,163,184,0.4);
+}
+.phoneLabel {
+  font-size:clamp(11px, 1.6vw, 13px);
+  font-weight:700;
+  opacity:0.85;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.phoneValue { font-size:clamp(20px, 4.5vw, 28px); font-weight:900; line-height:1.15; }
+@media (max-width:600px) {
+  .phoneLeft { flex-basis:100%; }
+  .phoneMid, .phoneRight { border-top:1px solid rgba(148,163,184,0.4); }
+  .phoneMid { border-left:0; }
+}
+.phoneLegControls {
+  display:flex;
+  gap:6px;
+  align-items:center;
+  justify-content:center;
+  margin:6px 0;
+}
+.phoneLegControls button {
+  border:1px solid var(--line);
+  background:#1e293b;
+  color:var(--text);
+  border-radius:8px;
+  padding:6px 10px;
+  font-weight:900;
+  font-size:clamp(11px, 1.7vw, 15px);
+}
+.phoneLegStatus {
+  color:#facc15;
+  font-weight:900;
+  font-size:clamp(11px, 1.7vw, 15px);
+  min-width:110px;
+  text-align:center;
+}
+tr.currentLegRow {
+  background:#1e293b !important;
+  box-shadow: inset 0 0 0 2px #facc15;
+}
+tr.currentLegRow td {
+  background:transparent !important;
+  color:#fff7ed;
+}
+tr.currentLegRow td:first-child {
+  border-top-left-radius:8px;
+  border-bottom-left-radius:8px;
+}
+tr.currentLegRow td:last-child {
+  border-top-right-radius:8px;
+  border-bottom-right-radius:8px;
+}
+.error {
+  margin:12px;
+  padding:12px;
+  background:#7f1d1d;
+  border-radius:10px;
+  color:white;
+  font-weight:800;
+}
+.historyPanel {
+  display:none;
+  margin-top:10px;
+  padding:8px;
+  background:var(--card);
+  color:var(--text);
+  border:1px solid var(--line);
+  border-radius:10px;
+}
+.historyHeader {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:6px;
+  font-size:13px;
+  font-weight:800;
+}
+.historyHeader select {
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:4px 8px;
+  font-weight:800;
+  background:#1e293b;
+  color:var(--text);
+}
+#windHistoryCanvas {
+  display:block;
+  width:100%;
+  height:420px;
+  background:var(--bg);
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+@media (orientation:portrait) {
+  .rotateHint {
+    display:block;
+    margin:8px 0;
+    color:#fde68a;
+    font-size:13px;
+  }
+  .historyPanel { display:block; }
+}
+@media (orientation:landscape) {
+  .rotateHint { display:none; }
+  .wrap { padding:6px; }
+  .historyPanel { display:none; }
+}

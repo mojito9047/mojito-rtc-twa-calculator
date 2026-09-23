@@ -1,0 +1,17 @@
+Bundled typefaces
+=================
+
+The .woff2 files in this folder are redistributed under the SIL Open Font
+Licence, Version 1.1, which permits bundling and redistribution with or without
+modification, provided the fonts are not sold on their own and this notice
+travels with them.
+
+  Archivo          Omnibus-Type               https://fonts.google.com/specimen/Archivo
+  Archivo Narrow   Omnibus-Type               https://fonts.google.com/specimen/Archivo+Narrow
+  IBM Plex Mono    IBM / Bold Monday          https://fonts.google.com/specimen/IBM+Plex+Mono
+
+Full licence text: https://openfontlicense.org/open-font-license-official-text/
+
+The same fonts as the Pwllheli Race Officer app, so the two look alike. They
+are served from this app rather than a CDN so the pages look the same on the
+boat, where there may be no internet connection.

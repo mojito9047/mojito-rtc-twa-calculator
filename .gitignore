@@ -1,0 +1,16 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# State the running app rewrites: course, marks, current leg, wind history,
+# Race Officer poll state. marks.example.json / course.example.json are the
+# committed starting point, copied into runtime/ at startup when missing.
+runtime/
+
+# Each install's own settings (saved from the Settings page). A fresh install
+# uses storage.DEFAULT_SETTINGS; install.bat copies the previous version's.
+settings.json
+
+# Release builds (tools/release.py).
+dist/

@@ -1,0 +1,460 @@
+/* Main app page (templates/index.html): Wind & Course, Course legs, marks,
+   imports, Race Officer and settings.
+
+   The look is the Pwllheli Race Officer's race-document theme
+   (static/theme_race_document.css in that app, by CapeNet Ltd.), adapted to
+   this page's markup, so the two apps read as one family:
+
+     DOCUMENTS (forms, tables, settings) get a paper ground, hairline rules
+     instead of shadowed cards, square corners, a condensed face for labels and
+     buttons, and monospaced figures for every bearing, range and position.
+
+     INSTRUMENTS (the wind strip, the start bar) get the chart-plotter
+     treatment: near-black ground, monospaced figures, amber for state.
+
+   Fonts: static/fonts.css (Archivo, Archivo Narrow, IBM Plex Mono, bundled so
+   the page looks the same with no internet connection). */
+
+:root {
+  /* Paper and ink. */
+  --paper: #f7f4ec;
+  --paper-2: #fffdf7;
+  --paper-sunk: #efeade;
+  --ink: #1c1a15;
+  --ink-2: #4a463c;
+  --ink-faint: #7d776a;
+  --rule: #cfc7b4;
+  --rule-strong: #a89f89;
+
+  /* Signal-flag colours. */
+  --flag-red: #c8102e;
+  --flag-green: #00843d;
+  --flag-blue: #003478;
+  --flag-yellow: #f5c400;
+
+  /* Instrument surfaces. */
+  --panel: #10120f;
+  --panel-2: #1a1d19;
+  --panel-rule: #333831;
+  --panel-ink: #e8e6dd;
+  --panel-faint: #8d8b80;
+  --panel-amber: #ffb000;
+
+  --text-face: 'Archivo', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --narrow: 'Archivo Narrow', 'Franklin Gothic', 'Arial Narrow', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', Consolas, 'Courier New', monospace;
+
+  /* Names the page's scripts and older rules use. */
+  --bg: var(--paper);
+  --card: var(--paper-2);
+  --line: var(--rule);
+  --text: var(--ink);
+  --muted: var(--ink-faint);
+  --good: var(--flag-green);
+  --bad: var(--flag-red);
+}
+
+/* ---------------------------------------------------------------- ground -- */
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--text-face);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1280px; margin: 0 auto; padding: 0 24px 24px; }
+p { color: var(--ink-faint); margin: 0; }
+a { color: var(--flag-blue); }
+.small { font-size: 0.8rem; color: var(--ink-faint); line-height: 1.45; }
+.mono { font-family: var(--mono); }
+table, .mono, input[type="number"] { font-variant-numeric: tabular-nums lining-nums; }
+
+/* ------------------------------------------------------- header and tabs -- */
+
+/* The page's own title, with the double rule under it: the one piece of
+   ornament in the theme. */
+.appHeader {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0 12px;
+  border-bottom: 3px double var(--ink);
+}
+.appHeader img { height: 56px; width: auto; }
+.appHeader h1 {
+  margin: 0;
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 1.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+.appVersion {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink-faint);
+}
+
+/* Filing-cabinet tabs, ruled, sharing one baseline with the sheet below. They
+   stay at the top of the screen while the page scrolls, above the chart's own
+   controls. */
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 12px 0 18px;
+  padding-top: 6px;
+  background: var(--paper);
+  border-bottom: 1.5px solid var(--ink);
+}
+.tabs .tab {
+  font-family: var(--narrow);
+  font-weight: 600;
+  font-size: 0.86rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--ink-faint);
+  border: 1px solid transparent;
+  border-bottom: none;
+  margin-bottom: -1.5px;
+  cursor: pointer;
+}
+.tabs .tab:hover { background: var(--paper-sunk); color: var(--ink); }
+.tabs .tab.active {
+  background: var(--paper-2);
+  color: var(--ink);
+  border-color: var(--ink);
+  border-bottom: 1.5px solid var(--paper-2);
+  font-weight: 700;
+}
+.view { display: none; }
+.view.active { display: block; }
+
+/* -------------------------------------------------------------- headings -- */
+
+h1, h2, h3, h4 { font-family: var(--text-face); font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+h2 { margin: 0 0 10px; font-size: 1.2rem; }
+/* Section headings read as the ruled headings of a printed race document. */
+h3 {
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--ink);
+  margin: 0 0 12px;
+}
+
+/* ----------------------------------------------------------------- cards -- */
+
+/* A section is ruled off, the way a form or a notice is divided. */
+.card {
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+
+/* --------------------------------------------------------------- buttons -- */
+
+/* Square, condensed, uppercase and spaced: a stamped form rather than a
+   rounded call-to-action. */
+button {
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper-2);
+  padding: 8px 16px;
+  cursor: pointer;
+}
+button:hover { background: var(--flag-blue); border-color: var(--flag-blue); color: #fff; }
+button.secondary { background: transparent; color: var(--ink); border-color: var(--rule-strong); }
+button.secondary:hover { background: var(--paper-sunk); color: var(--ink); border-color: var(--ink); }
+button.danger, button.secondary.danger { background: transparent; color: var(--flag-red); border-color: var(--flag-red); }
+button.danger:hover, button.secondary.danger:hover { background: var(--flag-red); color: #fff; }
+
+/* ----------------------------------------------------------------- forms -- */
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--narrow);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+}
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  padding: 9px 11px;
+  font-family: var(--text-face);
+  font-size: 1rem;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper-2);
+  color: var(--ink);
+}
+input[type="number"] { font-family: var(--mono); }
+input:focus, select:focus {
+  outline: 2px solid var(--flag-blue);
+  outline-offset: -2px;
+  border-color: var(--flag-blue);
+}
+input:disabled { background: var(--paper-sunk); color: var(--ink-2); }
+input[type="file"] { font-family: var(--text-face); font-size: 0.85rem; }
+
+.status { font-size: 0.85rem; color: var(--ink-faint); margin-top: 8px; }
+.status.good { color: var(--flag-green); }
+.status.bad { color: var(--flag-red); }
+
+/* ---------------------------------------------------------------- tables -- */
+
+/* A printed table rules its header instead of filling it. */
+table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+th, td { text-align: left; vertical-align: top; }
+th {
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  border-top: 1.5px solid var(--ink);
+  border-bottom: 1.5px solid var(--ink);
+  background: transparent;
+}
+td { padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+tbody tr:last-child td { border-bottom: 1.5px solid var(--ink); }
+tbody tr:hover td { background: #f0ece0; }
+/* Measurements line up in their columns. */
+/* Range, Bearing, TWA, Sail, Target BSP and Leg time; Side and Point of sail are words. */
+#legs td:nth-child(n+3):nth-child(-n+8) { font-family: var(--mono); }
+.big { font-family: var(--mono); font-size: 1.15rem; font-weight: 600; }
+.currentLegRow td { background: #fbf2cf !important; }
+.currentLegRow { outline: 2px solid var(--flag-yellow); outline-offset: -2px; }
+
+/* Controls inside a table belong to the ruled grid. */
+.markEditTable input { font-size: 0.9rem; padding: 5px 8px; }
+.markEditTable input[data-field="lat"], .markEditTable input[data-field="lon"] { font-family: var(--mono); }
+.markEditTable button { padding: 5px 11px; font-size: 0.74rem; }
+
+/* All-legs matrix. */
+.matrix th, .matrix td { text-align: center; min-width: 92px; }
+.matrix th:first-child, .matrix td:first-child { position: sticky; left: 0; background: var(--paper-2); z-index: 1; font-weight: 700; }
+.matrix thead th { position: sticky; top: 0; z-index: 2; background: var(--paper-2); }
+.matrix .na { color: var(--rule-strong); background: var(--paper-sunk); }
+.matrix .cell { line-height: 1.25; white-space: nowrap; font-family: var(--mono); font-size: 0.85rem; }
+.matrix .range { font-weight: 600; }
+.matrix .bearing { color: var(--ink-2); }
+.matrix .twa { font-size: 0.95rem; font-weight: 600; }
+.target { margin-top: 3px; color: var(--ink-2); font-size: 0.78rem; }
+
+/* Tack colours are the flags'. */
+.twaPort { color: var(--flag-red) !important; }
+.twaStarboard { color: var(--flag-green) !important; }
+.twaNeutral { color: var(--ink) !important; }
+
+/* ------------------------------------------------- boxed annotations ---- */
+
+/* Rounded pills are a component-library tell; these are the boxed
+   annotations of a printed form. */
+.sailTag, .matrix .sail {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border: 1px solid var(--ink);
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.roundBadge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--rule-strong);
+  color: var(--ink-2);
+}
+/* Port and starboard are the course board's signal-flag squares. */
+.roundBadgePort { background: var(--flag-red); border-color: var(--flag-red); color: #fff; }
+.roundBadgeStarboard { background: var(--flag-green); border-color: var(--flag-green); color: #fff; }
+.roundBadgeNone { background: transparent; }
+
+/* ------------------------------------------------------------ Course legs -- */
+
+.windSummary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.windChip {
+  display: inline-block;
+  padding: 3px 9px;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  background: var(--ink);
+  color: var(--paper-2);
+  border: 1px solid var(--ink);
+}
+.windChip.manualChip {
+  font-family: var(--narrow);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--flag-yellow);
+  border-color: var(--flag-yellow);
+  color: var(--ink);
+}
+.legNav { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.legNavStatus { font-family: var(--mono); font-weight: 600; color: var(--ink); }
+
+/* The start bar (static/race_start.js) is an instrument: near-black ground,
+   amber for state, like the Race Officer's countdown. */
+body .rsb { border-radius: 0; }
+body .rsb-dark { background: var(--panel); color: var(--panel-ink); border: 1px solid var(--panel-rule); }
+body .rsb-dark .rsbMain { font-family: var(--mono); font-weight: 500; }
+body .rsb-dark .rsbSub { font-family: var(--narrow); text-transform: uppercase; letter-spacing: 0.1em; color: var(--panel-faint); opacity: 1; }
+body .rsb-dark.rsb-urgent { background: var(--panel); border-color: var(--panel-amber); color: var(--panel-amber); }
+body .rsb-dark.rsb-postponed { background: var(--panel); border-color: var(--flag-red); color: #ff6b6b; }
+body .rsb-dark.rsb-racing { background: var(--panel); border-color: var(--flag-green); color: #7fe0a8; }
+body .rsb-dark.rsb-pending { background: var(--panel); border-color: var(--panel-rule); color: var(--panel-ink); }
+
+/* ---------------------------------------------------------- Wind & Course -- */
+
+/* The wind is an instrument too: a dark strip with monospaced figures. */
+.windStrip {
+  background: var(--panel);
+  border: 1px solid var(--panel-rule);
+  color: var(--panel-ink);
+  padding: 12px 18px;
+}
+.windStrip .row { gap: 10px; }
+.windMode {
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--panel-ink);
+  margin-right: 8px;
+}
+.windMode.manual { color: var(--panel-amber); }
+.inlineLabel { display: inline; margin: 0 0 0 8px; color: var(--panel-faint); }
+.windStrip input.compactNumber {
+  width: 100px;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 1.3rem;
+  background: var(--panel-2);
+  color: var(--panel-ink);
+  border: 1px solid var(--panel-rule);
+}
+.windStrip input.compactNumber:disabled { background: var(--panel); color: var(--panel-ink); border-color: var(--panel-rule); }
+.windStrip input.compactNumber:not(:disabled) { border-color: var(--panel-amber); }
+.unit { font-family: var(--mono); color: var(--panel-faint); }
+.windStrip .status { margin: 0 0 0 10px; color: var(--panel-faint); }
+.windStrip .status.good { color: #7fe0a8; }
+.windStrip .status.bad { color: #ff6b6b; }
+.windStripNotes { margin-top: 6px; color: var(--panel-faint); font-size: 0.8rem; }
+.windStripNotes[hidden] { display: none; }
+.windStripNotes a { color: var(--panel-amber); }
+
+/* Mark buttons: the mark code, then port (red) and starboard (green). */
+.markAddGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 4px 6px 4px 0;
+  padding: 3px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+}
+.markAddLabel { min-width: 34px; padding: 0 4px; font-family: var(--mono); font-size: 0.82rem; font-weight: 600; color: var(--ink); text-align: center; }
+.addPort, .addStarboard { padding: 4px 9px; font-size: 0.74rem; color: #fff; }
+.addPort { background: var(--flag-red); border-color: var(--flag-red); }
+.addPort:hover { background: #a30d25; border-color: #a30d25; }
+.addStarboard { background: var(--flag-green); border-color: var(--flag-green); }
+.addStarboard:hover { background: #006b31; border-color: #006b31; }
+#course { font-family: var(--mono); }
+
+/* Course chart. */
+.courseChartWrap { position: relative; height: 620px; min-height: 420px; border: 1px solid var(--rule-strong); overflow: hidden; background: #e0f2fe; }
+#courseChartMap { width: 100%; height: 100%; }
+.courseChartFallback { width: 100%; height: 100%; background: var(--paper-2); }
+.chartMarkLabel {
+  display: inline-block;
+  background: var(--ink);
+  color: #fff;
+  padding: 2px 7px;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+  white-space: nowrap;
+}
+.chartMarkLabel.allMark { background: var(--ink-faint); opacity: .85; }
+.chartLegend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; font-family: var(--narrow); font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-2); }
+.legendLine { display: inline-block; width: 28px; height: 4px; vertical-align: middle; margin-right: 5px; }
+.legendPort { background: var(--flag-red); }
+.legendStarboard { background: var(--flag-green); }
+.legendOther { background: var(--ink); }
+.legArrowIcon { font-size: 24px; line-height: 24px; font-weight: 900; text-shadow: 0 1px 3px rgba(255, 255, 255, .9), 0 -1px 3px rgba(255, 255, 255, .9); }
+
+/* --------------------------------------------------------------- Settings -- */
+
+.settingsSection h2 { margin-bottom: 4px; }
+.settingsSection > p.small { margin-bottom: 6px; }
+.settingsField { margin-top: 14px; }
+.settingsField .grow { flex: 1 1 240px; }
+.settingsField .port { flex: 0 0 130px; }
+.fileRow { margin-top: 8px; }
+/* The save bar stays on screen while the Settings page is open. */
+.settingsActions {
+  position: sticky;
+  bottom: 12px;
+  z-index: 500;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--paper-2);
+  border: 1.5px solid var(--ink);
+  padding: 10px 16px;
+}
+.settingsActions .status { margin-top: 0; }
+.dirtyNote {
+  font-family: var(--narrow);
+  font-weight: 700;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--flag-yellow);
+  color: var(--ink);
+  padding: 3px 9px;
+}
+
+/* ---------------------------------------------------------------- narrow -- */
+
+@media (max-width: 760px) {
+  .wrap { padding: 0 12px 16px; }
+  .appHeader img { height: 44px; }
+  .tabs .tab { padding: 7px 9px; font-size: 0.78rem; }
+  table { display: block; overflow-x: auto; max-width: 100%; }
+}

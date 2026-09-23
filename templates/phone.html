@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Mojito Course Legs</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/phone.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <h1>Mojito Course Legs <span class="appVersion">{{ app_version }}</span></h1>
+      <div class="meta" id="meta">Loading…</div>
+    </div>
+    <div id="phoneBar" class="phoneBar">
+      <div id="raceStartBar" class="phoneCell phoneLeft"></div>
+      <div class="phoneCell phoneMid">
+        <div class="phoneLabel" id="toMarkLabel">To mark</div>
+        <div class="phoneValue" id="toMarkBearing">—</div>
+        <div class="phoneLabel" id="toMarkRange"></div>
+      </div>
+      <div class="phoneCell phoneRight">
+        <div class="phoneLabel" id="nextLegLabel">Next leg</div>
+        <div class="phoneValue" id="nextLegBearing">—</div>
+        <div class="phoneLabel" id="nextLegRange"></div>
+      </div>
+    </div>
+    <div class="rotateHint">Rotate phone to landscape to see all fields.</div>
+    <div id="error" class="error" style="display:none;"></div>
+    <div class="phoneLegControls">
+      <button onclick="moveCurrentLeg(-1)">◀ Prev</button>
+      <span class="phoneLegStatus" id="phoneLegStatus">Leg —</span>
+      <button onclick="moveCurrentLeg(1)">Next ▶</button>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th class="leg">Leg</th>
+          <th class="round">Round</th>
+          <th class="range">Range</th>
+          <th class="bearing">Bearing</th>
+          <th class="twa">TWA</th>
+          <th class="sail">Sail</th>
+          <th class="bsp">Target BSP</th>
+          <th class="time">Leg time</th>
+        </tr>
+      </thead>
+      <tbody id="legs"></tbody>
+    </table>
+
+    <div class="historyPanel">
+      <div class="historyHeader">
+        <span>Wind history</span>
+        <label>Time:
+          <select id="historyMinutes" onchange="loadWindHistory()">
+            <option value="2">2 minutes</option>
+            <option value="5" selected>5 minutes</option>
+            <option value="10">10 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+          </select>
+        </label>
+      </div>
+      <canvas id="windHistoryCanvas" width="480" height="420"></canvas>
+    </div>
+  </div>
+
+<script src="/static/legs.js"></script>
+<script src="/static/race_start.js"></script>
+<script src="/static/phone.js"></script>
+</body>
+</html>

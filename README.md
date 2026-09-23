@@ -1,0 +1,374 @@
+# Mojito RTC TWA Calculator
+
+Race-day tactics for **Mojito**, a J/122 racing round the cans at Pwllheli.
+
+A round-the-cans course is announced only minutes before the start, and the crew then has to work out the race: where the course goes, what wind angle each leg will be sailed at, which sail each leg needs, and so where the sail changes come. This app works all of that out as soon as the course is known, and keeps it up to date as the wind shifts.
+
+- **The course in quickly.** Tap in the marks as the course is announced, choosing a port or starboard rounding for each. When the race committee is using the Pwllheli Race Officer app, the course arrives by itself the moment they set it, along with the start time, postponements and any shortening.
+- **Every leg worked out.** Bearing, range, true wind angle and tack, the sail from Mojito's sail chart, the target boat speed from the polar, and the expected time for each leg. Before the course is known, **Show all legs** gives the same figures for every pair of marks.
+- **Whatever instruments are working.** Live wind and position from Expedition, the B&G H5000 or a plotter's NMEA 0183 feed, or the wind typed in by hand when there are no instruments.
+- **On every screen aboard.** The Expedition PC, a tablet or phone, and the B&G chart plotter, where the app has its own tile. The displays share the current leg, so stepping on at a mark updates them all. The phone and plotter also show the bearing to the next mark and the bearing of the leg after it.
+- **Marks ready before going afloat.** Type them in, in degrees and minutes as they appear on the chart, or import them from an Expedition marks XML file. A Race Officer course brings its own mark positions.
+
+The app runs on the Expedition PC and the other screens open it over the boat network. Nothing needs the internet except the Race Officer app (when it is reached over the internet) and the course chart's map; without a connection the chart is drawn without the map.
+
+## Race day
+
+1. **Before going out.** Start the app (see [Installing](#installing)). Check that **Settings → Instruments** shows the instruments connected, and that **Edit marks** has the day's marks, importing them from Expedition if needed. If the committee is using the Race Officer app, turn on auto-import on the **Race Officer import** page.
+2. **When the course is announced.** With auto-import on, it appears by itself. Otherwise enter it on **Wind & Course**, using the P and S buttons beside each mark, and check it on the chart below.
+3. **Before the start.** **Course legs** shows the sail for every leg, so the crew can plan the sail changes. The start bar counts down to the first start.
+4. **Racing.** At each mark, press **Next leg** on any display. The phone and plotter show the bearing to the next mark, and all the figures follow the wind as it shifts.
+
+## Installing
+
+Download `mojito_rtc_twa_calculator_vNN.zip` from the [latest release](https://github.com/mojito9047/mojito-rtc-twa-calculator/releases/latest) before going to the boat. Nothing in the installation needs the internet: the zip carries its own copy of Flask. The Expedition PC needs Python 3.11 or later ([python.org](https://www.python.org/downloads/windows/)).
+
+1. Unzip it on the Expedition PC, into the folder that holds any earlier version, so the versions sit side by side (for example `Documents\Mojito\mojito_rtc_twa_calculator_v71`).
+2. Double-click `install.bat` in the new folder. It sets up Python's environment, then looks for the most recently used earlier version beside it and offers to copy its settings, marks and course across. Answer `Y` to carry on where the last version left off.
+3. Close the earlier version's `start_app.bat` window if it is running (both use port 8765).
+4. Double-click `start_app.bat` in the new folder.
+5. Open the app, and check the version at the top right of the page:
+
+```text
+http://localhost:8765
+```
+
+From another device on the same network:
+
+```text
+http://<Expedition-PC-IP-address>:8765
+```
+
+You may need to allow Python through Windows Firewall the first time.
+
+To check a new version on the PC before racing, double-click `run_tests.bat` (see [Testing](#testing)). Once the new version is working, the earlier version's folder can be deleted.
+
+With `Y`, the installer copies `settings.json`, the `runtime` folder (marks, course, current leg, manual wind, Race Officer state) and any sail chart, polar or marks file chosen in Settings that the new version does not have. If the earlier folder's sail chart or polar has been edited, the installer says so; copy it across by hand to keep the edits.
+
+## Pages
+
+The main page (`/`) has a tab for each section:
+
+| Tab | For |
+| --- | --- |
+| **Wind & Course** | The wind in one strip (typed in here when the source is *Manual wind*); the course editor, with a P and an S button beside each mark; and the course chart, which redraws as the course is built. |
+| **Course legs** | The main race page: the wind, the start bar, and each leg's rounding, range, bearing, TWA, sail, target boat speed, leg time, tack and point of sail, with the current leg highlighted. **Show all legs** switches to a grid of every mark-to-mark leg. |
+| **Edit marks** | The marks. Positions are shown and saved in degrees and decimal minutes, e.g. `50 39.330N` and `01 55.170W`. |
+| **Import Expedition marks** | Imports a group of marks from an Expedition `marks.xml` file, replacing the marks or adding to them. |
+| **Race Officer import** | Previews or imports the Race Officer course, and turns auto-import on or off. |
+| **Settings** | In three sections, **Instruments** (source and addresses), **Race Officer** (address) and **Files** (sail chart, polar, marks XML), with a save bar that stays on screen and flags unsaved changes. |
+
+Two more pages for the other screens:
+
+| Page | For |
+| --- | --- |
+| **Phone** (`/phone`, or **Open phone view** on Course legs) | Phones and tablets: start bar, bearing to the next mark and of the next leg, course table, and a wind history graph (in portrait). |
+| **MFD** (`/mfd`, the *Mojito RTC* tile on the plotter) | B&G/Navico chart plotters: start bar, bearing to the next mark and of the next leg, course table. |
+
+The main page follows the look of the Pwllheli Race Officer app. The phone and MFD pages are dark, for use on deck.
+
+Every page shows the app version: at the top right of the main page, beside the title on the phone, and in the top corner of the MFD next to the time of the last update.
+
+## Start bar
+
+The Course legs, phone and MFD pages show the Race Officer's start information while auto-import is on:
+
+- `Start in 4:59` counting down to the first start (amber in the last minute), then `Racing +12:34`
+- `No start time set`, `Course not set yet`
+- `AP over H — start postponed` and `AP down at 14:30`
+- `Course shortened at 4 (rounding 1)`
+- `Race finished`
+
+The countdown is to the **first** start; on a day with several starts, Mojito's own start may be later. On the phone and MFD the bar also shows the bearing and range from the boat to the next mark, and the bearing of the leg after it.
+
+## Files
+
+Configuration, in the app folder:
+
+| File | Purpose |
+| --- | --- |
+| `settings.json` | Instrument source, Race Officer address and polling, file paths. Written when settings are first saved; not in git or the release zip. A fresh install starts from the defaults (Expedition, the club's Race Officer server, the files below); `install.bat` copies the previous version's. |
+| `SailChart J122 North.txt` | Sail selection grid. |
+| `J122.txt` | Polar. |
+| `marks.xml` | Expedition marks export, for **Import Expedition marks**. |
+| `marks.example.json`, `course.example.json` | Starting marks and course for a fresh install. |
+
+State the app rewrites while running, in `runtime/` (not tracked in git; created at startup):
+
+| File | Purpose |
+| --- | --- |
+| `runtime/marks.json` | Active marks. |
+| `runtime/course.json` | Active course and roundings. |
+| `runtime/current_leg.json` | Current leg, shared by all displays. |
+| `runtime/manual_wind.json` | The TWD and TWS typed in for *Manual wind*. |
+| `runtime/display_wind.json` | TWD/TWS last shown on the Course legs page (fallback when the instruments have no TWD). |
+| `runtime/wind_history.jsonl` | Rolling one-hour TWD/TWS history. |
+| `runtime/race_officer_poll_state.json` | Last Race Officer poll: status, course signature, race and start info. |
+
+`marks.json` and `course.json` are copied from the example files when missing. Files left in the app folder by v60 or earlier are moved into `runtime/` automatically.
+
+## Instruments
+
+Live wind and position come from one of four sources, chosen under **Settings → Instruments**:
+
+| Source | Connection |
+| --- | --- |
+| **Expedition** on this PC (default) | Expedition's `ExpDLL.dll`, no setup |
+| **B&G H5000** | Websocket, default `192.168.15.149` port `2053` |
+| **NMEA 0183 over IP** from a plotter | TCP, default `192.168.15.166` port `10110` |
+| **Manual wind** | No instruments: TWD and TWS are typed in on the **Wind & Course** page and used by every display, which marks the wind as manual. There is then no boat position, so no bearing to the next mark. |
+
+Directions are used as degrees true and speeds as knots from every source, whether the displays are set to true or magnetic. The Settings page shows whether the source is connected and which values are arriving. If a source stops sending, its values count as missing after 5 seconds and the app reconnects by itself.
+
+If the source's TWD is unavailable, the TWD last shown on the Course legs page is used, so the MFD does not drop to 0°.
+
+Details, including which H5000 items and NMEA sentences are used: [docs/INSTRUMENTS.md](docs/INSTRUMENTS.md).
+
+## Sail chart
+
+The sail chart is a tab-separated text file:
+
+```text
+<TAB>36<TAB>39<TAB>42<TAB>50
+12<TAB>J2<TAB>J2<TAB>J1<TAB>J1
+11<TAB>J2<TAB>J1<TAB>J1<TAB>J1
+```
+
+- the first row holds the TWA headings
+- the first column holds the TWS values
+- each cell holds a sail name, for example `J1`, `J2`, `A0`, `A2`; blank cells are allowed and show `—`
+- the nearest TWS row and nearest TWA column are used; if a heading repeats, the first one is used
+- after editing the file, refresh the page
+
+`SailChart J122 North.txt` currently has two columns headed 36°, which differ only at 16 kt (J3 and J2). The first is probably meant to be a lower angle.
+
+## Polar
+
+The polar file is Expedition-style: the first column is TWS, followed by TWA / target boat-speed pairs. Target speed is interpolated by TWS and TWA. Tighter than the best upwind VMG angle, or deeper than the best downwind VMG angle, the page shows the VMG target instead (for example `7.0 kt @ 41°`), and the leg time uses the speed made good along the leg.
+
+## Race Officer import
+
+The app reads the Race Officer public API (Race Officer v1.011 and later; see its `docs/PUBLIC_API.md`). No login is needed. Set its address under **Settings → Race Officer**, for example:
+
+```text
+https://pro.pwllhelisailingclub.org
+```
+
+- **Nothing is imported until the race officer sets a course.** A new race carries a placeholder course number; while no course is set, the course showing here is cleared once and the pages show *No course set*.
+- The route imported is the course **as it is being sailed**. After a shortening it ends with a run to the middle of the finish line, added as mark `FIN`, and the boat keeps its current leg.
+- Waypoints are kept as route points, shown as **Via** legs.
+- Repeated marks and port/starboard roundings are kept; compound marks are imported as their corners.
+- Auto-import checks the Race Officer's cheap state signature every few seconds and fetches the full course only when it changes, and at least once a minute.
+
+The page buttons:
+
+- **Preview current course** — reads the current course without changing anything here
+- **Import current course** — imports it now (refused while no course is set)
+- **Auto-import when Race Officer course changes** — turns polling on or off
+- **Poll every** — interval in seconds, 5 to 300
+- **Check now** — one poll, importing only if changed
+
+Details: [docs/RACE_OFFICER_INTEGRATION.md](docs/RACE_OFFICER_INTEGRATION.md).
+
+## Course chart
+
+On the **Wind & Course** page, under the course editor; it redraws as marks are added, roundings chosen, or the course typed, undone or cleared.
+
+- all marks are drawn as grey reference labels, route marks as numbered labels
+- each leg is coloured by the rounding at its end: red port, green starboard, dark for start, via or unspecified
+- the run to the finish of a shortened course is dashed
+- arrows show the direction of each leg
+- on OpenStreetMap with the OpenSeaMap seamarks when there is an internet connection; without one, as a plain drawing of the marks and legs
+
+Details: [docs/COURSE_CHART.md](docs/COURSE_CHART.md).
+
+## B&G / Navico MFD integration
+
+The app advertises itself as an MFD browser panel by UDP multicast to `239.2.1.1:2053`, so it appears on the plotter as the *Mojito RTC* tile. The tile opens `/mfd`, which uses only older JavaScript so the MFD's embedded browser can run it.
+
+Details: [docs/MFD_AND_ZEUS.md](docs/MFD_AND_ZEUS.md).
+
+## API endpoints
+
+The main ones:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/api/course` | Read/save the active course and roundings. |
+| `/api/marks` | Read/save the marks. |
+| `/api/current_leg` | Read/save the shared current leg. |
+| `/api/wind` | The wind every display uses (instruments or manual), and the manual wind (POST to set it). |
+| `/api/expedition` | Current instrument values (from whichever source is selected; the name is historical). |
+| `/api/twd` | TWD, with the displayed-wind fallback. |
+| `/api/position` | Boat position from the instruments. |
+| `/api/instruments` | Which instrument source is in use and whether data is arriving. |
+| `/api/wind_history` | Rolling TWD/TWS history. |
+| `/api/sailchart`, `/api/polar` | The parsed sail chart and polar. |
+| `/api/settings` | Read/save settings. |
+| `/api/race_start` | Start bar data from the last Race Officer poll. |
+| `/api/race_officer/current_preview` | Preview the Race Officer course. |
+| `/api/race_officer/import_current` | Import the Race Officer course now. |
+| `/api/race_officer/poll_config` | Turn auto-import on or off. |
+| `/api/race_officer/poll_status` | Polling status. |
+| `/api/race_officer/poll_once` | Run one poll. |
+| `/api/mfd_status` | MFD advertisement payloads. |
+| `/api/health` | Whether the instrument source is connected. |
+
+All endpoints, with their fields: [docs/API_REFERENCE.md](docs/API_REFERENCE.md).
+
+## Testing
+
+Double-click `run_tests.bat`, or:
+
+```text
+.venv\Scripts\python.exe -m unittest discover -s tests -t .
+```
+
+The tests use fakes for Expedition and the Race Officer app, and a temporary copy of the app folder, so they can run at any time without touching the live course. The page JavaScript tests need Node.js and are skipped without it. Details: [docs/TESTING.md](docs/TESTING.md).
+
+## Troubleshooting
+
+### Which version is running?
+
+The version is at the top right of the main page, beside the title on the phone, and in the top corner of the MFD. If a screen shows an older version than the main page, reload it.
+
+### The pages show *No course set*
+
+The race officer has not set a course for the current race yet (the start bar says *Course not set yet*). It appears as soon as they do. A course can still be entered by hand on **Wind & Course**.
+
+### Race Officer preview or import does nothing
+
+Check the address under **Settings → Race Officer**: with auto-import on, the status line there says whether the last check worked. Then click **Preview current course** on the Race Officer import page; the status box should show the race and course, or say that no course is set yet.
+
+### The start bar is missing
+
+It only shows while Race Officer auto-import is on and the Race Officer app has answered in the last minute or two.
+
+### The phone or MFD shows *No GPS position*
+
+The instrument source has no position (or the source is *Manual wind*). Check its GPS input.
+
+### No wind, or *Live TWD unavailable*
+
+Open **Settings → Instruments**: the status line says whether the source is connected and what it is receiving. For the H5000 or a plotter, check the address and port, and that this PC is on the boat network. Switch to another source if one is down, or to *Manual wind* if none is working.
+
+### The course chart has no map
+
+The map tiles come from the internet. Without a connection the chart is drawn without the map; the marks, legs and roundings are still shown.
+
+### `start_app.bat` closes at once, or the page is still the old version
+
+Another version is still running on port 8765. Close its `start_app.bat` window, then start the new one again.
+
+### The MFD shows an old course
+
+The app tells the MFD not to cache anything (since v47). If it still shows an old course or an old version number, close the tile and open it again.
+
+## Developer notes
+
+1. `app.py` starts the app; the `/api/...` endpoints are in `server/`: storage, instruments (with the H5000 and NMEA 0183 readers), course data and the Race Officer import. The pages read and write through them.
+2. Leg calculations run in the browser, in `static/legs.js`, which all three pages share. It is ES5 so the MFD can run it.
+3. Server threads sample the wind once a second, poll the Race Officer app and advertise the MFD panel.
+4. Race Officer imports write `runtime/marks.json` and `runtime/course.json`, and keep or reset `runtime/current_leg.json`.
+5. The version shown on the pages is `VERSION` in `server/__init__.py`. Bump it, and add a section below, with each tagged version; a test checks the two match.
+6. Releases are built and published with `make_release.bat`: [docs/RELEASING.md](docs/RELEASING.md).
+
+More: [docs/DEVELOPER_NOTES.md](docs/DEVELOPER_NOTES.md).
+
+## Licence
+
+MIT: see [LICENSE](LICENSE). The bundled fonts (Archivo, Archivo Narrow, IBM Plex Mono) are under the SIL Open Font Licence ([static/fonts/OFL.txt](static/fonts/OFL.txt)). The main page's styling comes from the Pwllheli Race Officer app by CapeNet Ltd.
+
+## Version history
+
+- v40 removed Expedition route/mark sending.
+- v41–v44 added B&G/Navico MFD advertisement; v45 the legacy `/mfd` page.
+- v47 fixed the MFD showing a stale course; v48 made long MFD courses scroll.
+- v49–v51 added Race Officer current-course import; v52 the Course chart; v53 auto-import polling and chart arrows; v54 fixed polling settings being lost.
+- v56 made the Course legs page refresh after an auto-import.
+- v57 made `/mfd` use the same TWD, partial Expedition data and VMG logic as the main page.
+- v59 rolled back v58, and `/api/twd` falls back to the TWD shown on the Course legs page.
+
+### v60
+
+Uses the Race Officer public API from Race Officer v1.011.
+
+- No import until the race officer has set a course; **Import current course** refuses while none is set.
+- Shortened courses: imports the course as sailed, ending at mark `FIN` (dashed on the chart), keeping the current leg.
+- Waypoints shown as **Via** legs.
+- Polling checks `/public/race/state` and fetches the full course only when it changes, and at least every 60 seconds.
+- Start bar on the Course legs, phone and MFD pages.
+- Fixed: a failed poll reset the current leg to 0 on the next good poll.
+- Fixed: **Preview current course** imported the course.
+- Fixed: the Course chart opened zoomed in on one mark with no map tiles, under a stale "no course" message.
+- `marks.json`, `course.json` and `current_leg.json` no longer tracked in git; example files added.
+
+### v61
+
+- No course shown while the race officer has not set one: the course showing is cleared once per race.
+- MFD: heading removed; the bar shows the bearing and range to the next mark (`/api/position`) and the bearing of the next leg.
+- Runtime state moved to `runtime/`.
+- Test suite (`tests/`, `run_tests.bat`, [docs/TESTING.md](docs/TESTING.md)).
+- Fixed: Lat, Lon, COG and SOG read from the wrong Expedition channels, so COG showed longitude and SOG showed COG.
+- Fixed: the next race over the same course kept the previous race's current leg.
+- Fixed: the MFD chose a different sail from the other pages where the sail chart repeats a TWA heading.
+- Fixed: uploading a sail chart, polar or marks file failed after saving the file, leaving the setting unchanged.
+- Fixed: re-saving an imported course dropped its Via and Finish legs.
+
+### v62
+
+- Phone: the bar now shows the bearing and range to the next mark and the bearing of the next leg, as on the MFD. On a narrow portrait screen the start status takes the top row and the two bearings sit side by side below it.
+
+### v63
+
+- Refactor: the leg calculations, copied into each of the three pages until now, are in one shared script, `static/legs.js`. No calculation changed: every page gives the same answers as before across the whole test grid.
+
+### v64
+
+- Refactor: `app.py` split into `server/`: `storage.py` (paths, settings, JSON files), `instruments.py` (Expedition), `course_data.py` (course, marks, sail chart, polar, settings, uploads) and `race_officer.py`. `expedition_local.py` and `mfd_advertiser.py` moved there as `server/expedition_dll.py` and `server/mfd_advertiser.py`. Every URL is unchanged.
+- State files are written safely (to a temporary file, then swapped in), so a crash cannot leave a half-written course.
+
+### v65
+
+- Refactor: the main page's inline JavaScript and CSS moved out of `templates/index.html` (now HTML only) into `static/index.js` and `static/index.css`. No behaviour change.
+
+### v66
+
+- Refactor: the phone page's inline JavaScript and CSS moved into `static/phone.js` and `static/phone.css`; `templates/phone.html` is now HTML only. No behaviour change.
+
+### v67
+
+- Instrument source is configurable on the Settings page: Expedition, the B&G H5000 websocket, or NMEA 0183 over IP from a plotter ([docs/INSTRUMENTS.md](docs/INSTRUMENTS.md)). New `/api/instruments` status endpoint.
+- NMEA 0183: each value comes from one sentence and talker in a fixed order of preference (e.g. heading from `HDT`, then `VHW`, then `HDG`), falling back only when the one in use goes quiet for 3 seconds, so a value cannot flip between two devices.
+- Fixed: two saves of the same file at the same moment could make one fail (seen as an occasional 400 from `/api/display_wind`). Each save now has its own temporary file.
+
+### v68
+
+- One Race Officer address, set under **Settings → Race Officer** (with a connection status line); the Race Officer import page shows it. Previously the import page had its own copy of the setting and saved it before every preview, import and 10-second check.
+- Settings page in three sections (Instruments, Race Officer, Files) with a save bar that stays on screen, an *Unsaved changes* note, and *Discard changes*; switching tabs no longer loses unsaved edits.
+
+### v69
+
+- **Manual wind** is a fourth instrument source (**Settings → Instruments**), for when no instruments are available. The TWD and TWS are then typed in on the **Wind & Course** page, saved straight away, and used by the Course legs, phone and MFD pages, which show *Manual wind* / *MANUAL*. This replaces the old "Use live TWD" checkbox; TWS can now be entered by hand too.
+- The course chart is on the **Wind & Course** page, under the course editor, and redraws as the course is built. The separate Course chart tab is gone.
+- The list of marks under the course editor is gone (the mark buttons stay), and so is the Marks card on the Course legs page.
+- Wind & Course: the wind is one compact strip and the course editor is full width, so the chart below is in view.
+- Edit marks shows and saves positions in degrees and decimal minutes, as sailors write them (`50 39.330N`, `01 55.170W`), to three decimals of a minute so Race Officer positions stay exact. Other formats (`50° 39.33'N`, decimal degrees) are still accepted when typed; a position that cannot be read is named in the error. The course chart's mark popups use the same format.
+- The phone and MFD take their wind from the new `/api/wind`, like the Course legs page.
+- The main page's title is now *RTC TWA Calculator*, without the description paragraph under it.
+
+### v70
+
+- The main page uses the Pwllheli Race Officer's look: paper background, ruled headings and tables, square condensed buttons, monospaced figures, and dark instrument panels for the wind strip and start bar. Port and starboard use the signal-flag red and green.
+- Sections are tabs (Wind & Course, Course legs, Edit marks, imports, Race Officer, Settings) instead of a row of buttons. The tab row stays at the top of the screen when the page scrolls.
+- The fonts are part of the app, so the page looks the same on the boat with no internet connection.
+- The Mojito logo has a transparent background (`static/mojito-logo.png`), so it sits on the page instead of in a white box.
+- Wind & Course: the line of instrument readings under the wind (TWD, TWS, BSP, HDG, COG, SOG) is gone, so the wind strip is one row.
+- Every page shows the app version: the main page in its header, the phone beside its title, the MFD in the top corner next to the update time.
+
+### v71
+
+- Releases: `make_release.bat` builds `mojito_rtc_twa_calculator_vNN.zip` from the tagged version, runs the tests on exactly what will ship, and publishes it on GitHub ([docs/RELEASING.md](docs/RELEASING.md)).
+- Published at [github.com/mojito9047/mojito-rtc-twa-calculator](https://github.com/mojito9047/mojito-rtc-twa-calculator) under the MIT licence, with each version's zip on the Releases page.
+- The zip carries Flask and its dependencies (`wheels`), so `install.bat` needs no internet. It then offers to copy the settings, marks and course from the most recently used earlier version beside it (`copy_previous_install.py`).
+- `settings.json` is no longer in git or the zip: it belongs to each install. A fresh install starts from the defaults, now with the club's Race Officer server (`https://pro.pwllhelisailingclub.org`) as the address.
