@@ -9,7 +9,7 @@ why Raymarine cannot be done the same way. Nothing here is implemented yet.
 | --- | --- | --- | --- |
 | B&G, Simrad, Lowrance (Navico) | Yes, since v41 | JSON announcement by UDP multicast to `239.2.1.1:2053` (`server/mfd_advertiser.py`) | Yes |
 | Garmin | Not yet | mDNS service `_garmin-mrn-html._tcp` pointing at a JSON manifest, possibly with a UPnP reply | Undocumented, but used by non-partners |
-| Raymarine Axiom | No | The plotter recognises approved partners' devices | No public mechanism |
+| Raymarine Axiom | No | Not public: approved partners' integrations only | No public mechanism |
 
 ## Plotter browsers
 
@@ -103,13 +103,17 @@ documented by Garmin, which does not support individual developers):
 - **Only for partners.** The apps shown are Raymarine's integration partners
   (Victron, mazu and others). No discovery method is published for anyone
   else.
-- **Victron's open-source code shows the recognition is on Raymarine's side.**
-  Venus OS contains no Raymarine (or Navico) announcement at all. It only
-  announces itself as a Victron device, generically, over UPnP
-  (`simple-upnpd`: manufacturer *Victron Energy*, UDN
-  `uuid:com.victronenergy.ccgx...`, `presentationURL /`, but no app name, icon
-  or page), and serves its app as a plain page at `/app`. So the plotter's own
-  software must recognise a Victron device and open its `/app` page.
+- **How Victron's app gets onto a Raymarine is not public.** Victron's
+  announcers to plotters are in its private code: a script in its Signal K
+  recipe (`get-mfd-announce-address.sh`) refers to "the navico advertiser for
+  Venus OS" and to an issue in the private `victronenergy/venus-private`
+  repository, and no Navico advertiser is in its public repositories. Any
+  Raymarine announcement would be there too. What is public is only a generic
+  UPnP announcement of the device (`simple-upnpd`: manufacturer *Victron
+  Energy*, UDN `uuid:com.victronenergy.ccgx...`, `presentationURL /`, no app
+  name, icon or page) and the app itself, a plain page at `/app`. Whether an
+  Axiom finds it from a private announcement or by recognising a Victron
+  device is unknown.
 - **No general web browser.** Axiom has no browser to type an address into
   (owners have asked Raymarine for one), so `/mfd` cannot be opened by hand.
 - **Not an option: imitating a Victron device** (copying its UPnP
@@ -133,8 +137,12 @@ documented by Garmin, which does not support individual developers):
   <https://github.com/erh/verhboat>
 - matztam/Remote-Helm, the Garmin mDNS service types (`lib/helm/discovery.dart`):
   <https://github.com/matztam/Remote-Helm>
-- Victron Venus OS layer (`simple-upnpd`, the HTML5 app recipe):
+- Victron Venus OS layer (`simple-upnpd`, the HTML5 app recipe, and
+  `recipes-extended/signalk-server/signalk-server/get-mfd-announce-address.sh`,
+  which refers to Victron's private Navico advertiser):
   <https://github.com/victronenergy/meta-victronenergy>
+- Signal K server's built-in Navico announcement (`src/interfaces/mfd_webapp.ts`):
+  <https://github.com/SignalK/signalk-server>
 - Victron HTML5 app (plotter browser versions, Raymarine screen sizes):
   <https://github.com/victronenergy/venus-html5-app>
 - Signal K MFD plugin, the source of this app's Navico announcement (Navico
