@@ -16,6 +16,11 @@ dist/mojito_rtc_twa_calculator_v71.zip.
 publish puts that release on GitHub. The public repository gets one commit per
 release, holding the tagged files, authored as PUBLIC_AUTHOR; the development
 history stays on this PC. Re-running either step is safe.
+
+push puts the committed files on GitHub the same way but makes no release, for
+changes (documentation, say) that should be public before the next release:
+
+    .venv\\Scripts\\python.exe tools\\release.py push
 """
 
 import argparse
@@ -294,8 +299,8 @@ def ensure_remote():
         say(f"Installed the pre-push hook ({hook.relative_to(ROOT)})")
 
 
-def snapshot_commit(version, tree, notes):
-    """The public commit for this release: the tagged files on top of the last public release."""
+def snapshot_commit(message, tree):
+    """A public commit holding `tree`, on top of GitHub's main: (commit, new), or GitHub's main if it has it."""
     git("fetch", "--quiet", "--no-tags", REMOTE)
     parent = None
     if git_ok("rev-parse", "-q", "--verify", f"refs/remotes/{REMOTE}/main"):
@@ -305,10 +310,43 @@ def snapshot_commit(version, tree, notes):
     name, email = PUBLIC_AUTHOR
     env = {"GIT_AUTHOR_NAME": name, "GIT_AUTHOR_EMAIL": email,
            "GIT_COMMITTER_NAME": name, "GIT_COMMITTER_EMAIL": email}
-    args = ["commit-tree", tree, "-m", f"{version}\n\n{notes}"]
+    args = ["commit-tree", tree, "-m", message]
     if parent:
         args += ["-p", parent]
     return git(*args, env=env), True
+
+
+def check_github():
+    """gh signed in, the public repository there, and the remote and hook set up; returns gh."""
+    gh = find_gh()
+    run([gh, "auth", "status"])
+    if subprocess.run([gh, "repo", "view", PUBLIC_REPO, "--json", "name"], capture_output=True).returncode != 0:
+        raise ReleaseError(f"GitHub repository {PUBLIC_REPO} not found (see docs/RELEASING.md to create it).")
+    ensure_remote()
+    return gh
+
+
+def push_snapshot():
+    """The committed files (HEAD) onto GitHub's main without a release, e.g. documentation between releases.
+
+    Like publish, it adds one commit authored as PUBLIC_AUTHOR, so the
+    development history stays here; but there is no tag, zip or GitHub
+    release, and the Releases page still offers the last release.
+    """
+    if git("status", "--porcelain", "--untracked-files=no"):
+        say("Note: only committed changes are pushed; uncommitted edits stay here.")
+    check_github()
+    last = git("describe", "--tags", "--abbrev=0", "--match", "v[0-9]*", "HEAD")
+    subjects = git("log", "--format=- %s", f"{last}..HEAD")
+    if not subjects:
+        raise ReleaseError(f"Nothing committed since {last}: commit first, or publish a release instead.")
+    message = f"Between releases (after {last})\n\n{subjects}"
+    commit, new = snapshot_commit(message, git("rev-parse", "HEAD^{tree}"))
+    if new:
+        git("push", "--quiet", REMOTE, f"{commit}:refs/heads/main", env={PUSH_ENV: "1"})
+        say(f"Pushed to {PUBLIC_REPO} main ({commit[:10]}), after {last}; no release made.")
+    else:
+        say(f"{PUBLIC_REPO} main already has these files ({commit[:10]}).")
 
 
 def is_newest(gh, version):
@@ -334,13 +372,8 @@ def publish(draft=False):
     if info.get("tests_skipped"):
         raise ReleaseError("The zip was built with the tests skipped. Build it again with the tests.")
 
-    gh = find_gh()
-    run([gh, "auth", "status"])
-    if subprocess.run([gh, "repo", "view", PUBLIC_REPO, "--json", "name"], capture_output=True).returncode != 0:
-        raise ReleaseError(f"GitHub repository {PUBLIC_REPO} not found (see docs/RELEASING.md to create it).")
-    ensure_remote()
-
-    commit, new = snapshot_commit(version, tree, info["notes"])
+    gh = check_github()
+    commit, new = snapshot_commit(f"{version}\n\n{info['notes']}", tree)
     if new:
         git("push", "--quiet", REMOTE, f"{commit}:refs/heads/main", env={PUSH_ENV: "1"})
         say(f"Pushed {version} to {PUBLIC_REPO} main ({commit[:10]})")
@@ -381,10 +414,13 @@ def main(argv=None):
     b.add_argument("--skip-tests", action="store_true", help="for trying the build only; publish refuses it")
     p = sub.add_parser("publish", help="put the built release on GitHub")
     p.add_argument("--draft", action="store_true", help="create the GitHub release as a draft")
+    sub.add_parser("push", help="put the committed files on GitHub without a release (e.g. docs)")
     args = parser.parse_args(argv)
     try:
         if args.command == "build":
             build(skip_tests=args.skip_tests)
+        elif args.command == "push":
+            push_snapshot()
         else:
             publish(draft=args.draft)
     except (ReleaseError, subprocess.CalledProcessError) as exc:

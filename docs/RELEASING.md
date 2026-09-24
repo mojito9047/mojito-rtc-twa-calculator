@@ -68,6 +68,21 @@ the release commits. A `pre-push` hook (installed by `publish`) refuses any
 other push, because pushing a branch from here would publish the whole
 development history.
 
+## Updating GitHub between releases
+
+For changes that should be public before the next release, documentation
+say, commit them, then:
+
+```text
+.venv\Scripts\python.exe tools\release.py push
+```
+
+It adds one commit to GitHub's `main` holding the committed files, authored
+`CapeNet Dev` like a release commit and titled *Between releases (after vNN)*
+with the subjects of the local commits since that release. There is no tag, zip
+or GitHub release: the Releases page still offers the last release. Use `git
+push` for none of this; the hook refuses it.
+
 ## Setting up on another PC
 
 Needs git, Python with this app's `.venv` (`install.bat`) and the GitHub CLI

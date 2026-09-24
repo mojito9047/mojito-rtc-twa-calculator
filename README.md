@@ -194,6 +194,8 @@ The app advertises itself as an MFD browser panel by UDP multicast to `239.2.1.1
 
 Details: [docs/MFD_AND_ZEUS.md](docs/MFD_AND_ZEUS.md).
 
+Garmin and Raymarine plotters do not show the tile. Garmin support could be added later; Raymarine only shows apps from its approved partners. On those boats, use the phone page on a tablet at the helm. Details: [docs/OTHER_PLOTTERS.md](docs/OTHER_PLOTTERS.md).
+
 ## API endpoints
 
 The main ones:

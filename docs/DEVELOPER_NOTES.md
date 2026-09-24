@@ -187,7 +187,9 @@ start_mfd_advertiser()
     -> UDP multicast to 239.2.1.1:2053
 ```
 
-See [MFD_AND_ZEUS.md](MFD_AND_ZEUS.md).
+See [MFD_AND_ZEUS.md](MFD_AND_ZEUS.md). Garmin and Raymarine plotters, not yet
+supported: [OTHER_PLOTTERS.md](OTHER_PLOTTERS.md) (how Garmin could be added,
+and Raymarine's limitations).
 
 ## Course chart
 

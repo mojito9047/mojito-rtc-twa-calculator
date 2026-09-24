@@ -78,3 +78,8 @@ The MFD page mirrors the main Course legs page for:
 
 The calculations themselves are shared: all three pages use `static/legs.js`.
 `tests/test_js.py` checks all three pages give the same answers.
+
+## Other plotter brands
+
+Only B&G/Navico plotters get the tile. How Garmin plotters could be added, and
+why Raymarine plotters cannot be done the same way: [OTHER_PLOTTERS.md](OTHER_PLOTTERS.md).
